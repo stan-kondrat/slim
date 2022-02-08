@@ -12,6 +12,8 @@
 #include <cstdio>
 #include "switchuser.h"
 #include "util.h"
+#include "log.h"
+#include "cfg.h"
 
 using namespace std;
 
@@ -45,8 +47,14 @@ void SwitchUser::SetUserId() {
 }
 
 void SwitchUser::Execute(const char* cmd) {
+	logStream.closeLog();
 	chdir(Pw->pw_dir);
 	execle(Pw->pw_shell, Pw->pw_shell, "-c", cmd, NULL, env);
+	/// @todo this copy-paste of App:CloseLog() should be cleaned up
+	if ( !logStream.openLog( cfg->getOption("logfile").c_str() ) ) {
+		cerr <<  APPNAME << ": Could not accesss log file: " << cfg->getOption("logfile") << endl;
+		exit(ERR_EXIT);
+	}
 	logStream << APPNAME << ": could not execute login command" << endl;
 }
 

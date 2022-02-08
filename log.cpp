@@ -21,3 +21,7 @@ LogUnit::closeLog()
 	if (logFile.is_open())
 		logFile.close();
 }
+
+
+/* Now instantiate a singleton for all the rest of the code to use */
+LogUnit logStream;

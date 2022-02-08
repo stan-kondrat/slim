@@ -402,7 +402,7 @@ void App::Run()
 		{
 			// Removed by Gentoo "session-chooser" patch
 			//LoginPanel->SwitchSession();
-        	}
+		}
 
 		if (!AuthenticateUser(focuspass && firstloop))
 		{
@@ -689,7 +689,8 @@ void App::Login()
 		string sessStart = cfg->getOption("sessionstart_cmd");
 		if (sessStart != "") {
 			replaceVariables(sessStart, USER_VAR, pw->pw_name);
-			system(sessStart.c_str());
+			if ( system(sessStart.c_str()) < 0 )
+				logStream << APPNAME << ": Failed to run sessionstart_cmd" << endl;
 		}
 		Su.Login(loginCommand.c_str(), mcookie.c_str());
 		_exit(OK_EXIT);
@@ -707,6 +708,10 @@ void App::Login()
 		if (wpid == ServerPID)
 			xioerror(Dpy);	/* Server died, simulate IO error */
 	}
+#ifndef XNEST_DEBUG
+	/* Re-activate log file */
+	OpenLog();
+#endif
 	if (WIFEXITED(status) && WEXITSTATUS(status)) {
 		LoginPanel->Message("Failed to execute login command");
 		sleep(3);
@@ -714,7 +719,8 @@ void App::Login()
 		 string sessStop = cfg->getOption("sessionstop_cmd");
 		 if (sessStop != "") {
 			replaceVariables(sessStop, USER_VAR, pw->pw_name);
-			system(sessStop.c_str());
+			if ( system(sessStop.c_str()) < 0 )
+				logStream << "Session stop command failed" << endl;
 		}
 	}
 
@@ -752,9 +758,7 @@ void App::Login()
 	HideCursor();
 
 #ifndef XNEST_DEBUG
-	/* Re-activate log file */
-	OpenLog();
-	RestartServer();
+	RestartServer();	/// @bug recursive call!
 #endif
 
 }
@@ -777,7 +781,8 @@ void App::Reboot()
 	/* Stop server and reboot */
 	StopServer();
 	RemoveLock();
-	system(cfg->getOption("reboot_cmd").c_str());
+	if ( system(cfg->getOption("reboot_cmd").c_str()) < 0 )
+		logStream << APPNAME << ": Failed to execute reboot command" << endl;
 	exit(OK_EXIT);
 }
 
@@ -800,14 +805,16 @@ void App::Halt()
 	/* Stop server and halt */
 	StopServer();
 	RemoveLock();
-	system(cfg->getOption("halt_cmd").c_str());
+	if ( system(cfg->getOption("halt_cmd").c_str()) < 0 )
+		logStream << APPNAME << ": Failed to execute halt command" << endl;
 	exit(OK_EXIT);
 }
 
 void App::Suspend()
 {
 	sleep(1);
-	system(cfg->getOption("suspend_cmd").c_str());
+	if ( system(cfg->getOption("suspend_cmd").c_str() ) < 0 )
+		logStream << APPNAME << ": Failed to execute suspend command" << endl;
 }
 
 
@@ -824,7 +831,8 @@ void App::Console()
 	const char* cmd = cfg->getOption("console_cmd").c_str();
 	char *tmp = new char[strlen(cmd) + 60];
 	sprintf(tmp, cmd, width, height, posx, posy, fontx, fonty);
-	system(tmp);
+	if ( system(tmp) < 0 )
+		logStream << APPNAME << ": Failed to fork console app '" << cmd << "'" << endl;
 	delete [] tmp;
 }
 
@@ -1230,7 +1238,7 @@ bool App::isServerStarted()
 void App::OpenLog()
 {
 	if ( !logStream.openLog( cfg->getOption("logfile").c_str() ) ) {
-		logStream <<  APPNAME << ": Could not accesss log file: " << cfg->getOption("logfile") << endl;
+		cerr <<  APPNAME << ": Could not accesss log file: " << cfg->getOption("logfile") << endl;
 		RemoveLock();
 		exit(ERR_EXIT);
 	}

@@ -14,6 +14,8 @@
 #include <libgen.h>
 #include <X11/extensions/Xrandr.h>
 #include "panel.h"
+#include "log.h"
+#include "cfg.h"
 
 using namespace std;
 

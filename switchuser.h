@@ -20,9 +20,8 @@
 #include <paths.h>
 #include <cstdio>
 #include <iostream>
-#include "log.h"
-#include "cfg.h"
 
+class Cfg;
 
 class SwitchUser {
 public:
