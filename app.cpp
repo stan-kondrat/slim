@@ -162,7 +162,7 @@ App::App(int argc, char** argv)
 			testtheme = optarg;
 			testing = true;
 			if (testtheme == NULL) {
-				logStream << "The -p option requires an argument" << endl;
+				cerr << "The -p option requires an argument" << endl;
 				exit(ERR_EXIT);
 			}
 			break;
@@ -183,7 +183,7 @@ App::App(int argc, char** argv)
 			break;
 #endif
 		case '?':	/* Illegal */
-			logStream << endl;
+			std::cout << endl;
 		case 'h':   /* Help */
 			std::cout << "usage:  " << APPNAME << " [option ...]" << endl
 			<< "options:" << endl
@@ -720,7 +720,7 @@ void App::Login()
 		 if (sessStop != "") {
 			replaceVariables(sessStop, USER_VAR, pw->pw_name);
 			if ( system(sessStop.c_str()) < 0 )
-				logStream << "Session stop command failed" << endl;
+				logStream << APPNAME << "Session stop command failed" << endl;
 		}
 	}
 

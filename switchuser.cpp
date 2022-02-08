@@ -47,15 +47,16 @@ void SwitchUser::SetUserId() {
 }
 
 void SwitchUser::Execute(const char* cmd) {
+	if ( chdir(Pw->pw_dir) < 0 )
+		logStream << APPNAME << ": unable to chdir() to user's home: " << strerror(errno) << endl;
 	logStream.closeLog();
-	chdir(Pw->pw_dir);
 	execle(Pw->pw_shell, Pw->pw_shell, "-c", cmd, NULL, env);
 	/// @todo this copy-paste of App:CloseLog() should be cleaned up
 	if ( !logStream.openLog( cfg->getOption("logfile").c_str() ) ) {
 		cerr <<  APPNAME << ": Could not accesss log file: " << cfg->getOption("logfile") << endl;
 		exit(ERR_EXIT);
 	}
-	logStream << APPNAME << ": could not execute login command" << endl;
+	logStream << APPNAME << ": could not execute login command: " << strerror(errno) << endl;
 }
 
 void SwitchUser::SetClientAuth(const char* mcookie) {

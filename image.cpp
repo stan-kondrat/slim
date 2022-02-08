@@ -57,7 +57,8 @@ bool
 Image::Read(const char *filename) {
 	char buf[4];
 	unsigned char *ubuf = (unsigned char *) buf;
-	int success = 0;
+	int success;
+	int nr;
 
 	FILE *file;
 	file = fopen(filename, "rb");
@@ -66,8 +67,10 @@ Image::Read(const char *filename) {
 
 	/* see what kind of file we have */
 
-	fread(buf, 1, 4, file);
+	nr = fread(buf, 1, 4, file);
 	fclose(file);
+	if ( nr < 4 )
+		return false;	// Failed to read 4 bytes; probably empty file
 
 	if ((ubuf[0] == 0x89) && !strncmp("PNG", buf+1, 3))
 		success = readPng(filename, &width, &height, &rgb_data, &png_alpha);
@@ -692,7 +695,7 @@ Image::createPixmap(Display* dpy, int scr, Window win) {
 		}
 		break;
 	default: {
-			logStream << "Login.app: could not load image" << endl;
+			logStream << APPNAME << ": could not load image" << endl;
 			return(tmp);
 		}
 	}
