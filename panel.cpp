@@ -518,14 +518,14 @@ void Panel::OnExpose(void) {
 
 void Panel::EraseLastChar(string &formerString) {
 	switch(field) {
-	case GET_NAME:
+	case Get_Name:
 		if (! NameBuffer.empty()) {
 			formerString=NameBuffer;
 			NameBuffer.erase(--NameBuffer.end());
 		}
 		break;
 
-	case GET_PASSWD:
+	case Get_Passwd:
 		if (!PasswdBuffer.empty()) {
 			formerString=HiddenPasswdBuffer;
 			PasswdBuffer.erase(--PasswdBuffer.end());
@@ -552,7 +552,8 @@ bool Panel::OnKeyPress(XEvent& event) {
 
 		case XK_F11:
 			/* Take a screenshot */
-			system(cfg->getOption("screenshot_cmd").c_str());
+			if ( system(cfg->getOption("screenshot_cmd").c_str()) < 0 )
+				logStream << APPNAME << ": screenshot_cmd failed" << endl;
 			return true;
 
 		case XK_Return:
@@ -577,7 +578,7 @@ bool Panel::OnKeyPress(XEvent& event) {
 					else
 						action = Lock;
 				}
-			};
+			}
 			return false;
 		default:
 			break;
@@ -616,26 +617,26 @@ bool Panel::OnKeyPress(XEvent& event) {
 		default:
 			if (isprint(ascii) && (keysym < XK_Shift_L || keysym > XK_Hyper_R)){
 				switch(field) {
-					case GET_NAME:
+					case Get_Name:
 						formerString=NameBuffer;
 						if (NameBuffer.length() < INPUT_MAXLENGTH_NAME-1){
 							NameBuffer.append(&ascii,1);
-						};
+						}
 						break;
-					case GET_PASSWD:
+					case Get_Passwd:
 						formerString=HiddenPasswdBuffer;
 						if (PasswdBuffer.length() < INPUT_MAXLENGTH_PASSWD-1){
 							PasswdBuffer.append(&ascii,1);
 							HiddenPasswdBuffer.append("*");
-						};
+						}
 					break;
-				};
+				}
 			}
 			else {	// *RP* I think this is to fix the fake bolding if the user presses TAB
 				return true; //nodraw if notchange
-			};
+			}
 			break;
-	};
+	}
 
 	XGlyphInfo extents;
 	XftDraw *draw = XftDrawCreate(Dpy, Win,

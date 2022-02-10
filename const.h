@@ -24,9 +24,6 @@
 #define HIDE		0
 #define SHOW		1
 
-#define GET_NAME	0
-#define GET_PASSWD  1
-
 #define OK_EXIT	 0
 #define ERR_EXIT	1
 
