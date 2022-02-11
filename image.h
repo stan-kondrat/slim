@@ -17,7 +17,6 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xmu/WinUtil.h>
-#include "log.h"
 
 class Image {
 public:

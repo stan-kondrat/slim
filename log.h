@@ -7,7 +7,6 @@
 #ifdef USE_PAM
 #include "PAM.h"
 #endif
-#include "const.h"
 #include <fstream>
 
 using namespace std;

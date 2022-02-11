@@ -21,6 +21,8 @@
 
 using namespace std;
 
+#include "log.h"
+#include "const.h"
 #include "image.h"
 
 extern "C" {

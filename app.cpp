@@ -2,6 +2,7 @@
  *  Copyright (C) 1997, 1998 Per Liden
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
+ *  Copyright (C) 2022 Rob Pearce <slim@flitspace.org.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -12,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pwd.h>			// for getpwnam etc.
 #include <fcntl.h>
 #include <stdint.h>
 #include <cstring>
@@ -22,9 +24,12 @@
 #include <vector>
 #include <algorithm>
 
-#include "app.h"
+#include "const.h"
+#include "log.h"
 #include "numlock.h"
+#include "switchuser.h"
 #include "util.h"
+#include "app.h"
 
 #ifdef HAVE_SHADOW
 #include <shadow.h>

@@ -13,7 +13,6 @@
 #define _SWITCHUSER_H_
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <pwd.h>
 #include <grp.h>

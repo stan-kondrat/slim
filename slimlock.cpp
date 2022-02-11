@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <err.h>
 #include <signal.h>
+#include <unistd.h>			// for usleep
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -31,6 +32,7 @@
 #include "cfg.h"
 #include "util.h"
 #include "panel.h"
+#include "const.h"
 
 #undef APPNAME
 #define APPNAME "slimlock"
