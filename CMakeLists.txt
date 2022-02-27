@@ -37,7 +37,7 @@ else()
 	set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DHAVE_SHADOW")
 endif()
 
-set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DPACKAGE=\"slim\"")
+set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DAPPNAME=\"${PROJECT_NAME}\"")
 set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DVERSION=\"${SLIM_VERSION}\"")
 set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DPKGDATADIR=\"${PKGDATADIR}\"")
 set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DSYSCONFDIR=\"${SYSCONFDIR}\"")
@@ -186,7 +186,7 @@ target_link_libraries(libslim
 )
 
 #Set up library with all found packages for slim
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(slim
 	${M_LIB}
 	${RT_LIB}
 	${CRYPTO_LIB}

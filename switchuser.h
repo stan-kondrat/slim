@@ -22,7 +22,8 @@
 
 class Cfg;
 
-class SwitchUser {
+class SwitchUser
+{
 public:
 	SwitchUser(struct passwd *pw, Cfg *c, const std::string& display,
 			   char** _env);

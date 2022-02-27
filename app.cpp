@@ -95,7 +95,8 @@ int conv(int num_msg, const struct pam_message **msg,
 				logStream << APPNAME << ": " << msg[i]->msg << endl;
 				break;
 		}
-		if (result!=PAM_SUCCESS) break;
+		if (result != PAM_SUCCESS)
+			break;
 	}
 
 	if (result != PAM_SUCCESS) {
@@ -161,7 +162,7 @@ App::App(int argc, char** argv)
 
 	/* Parse command line
 	   Note: we force a option for nodaemon switch to handle "-nodaemon" */
-	while((tmp = getopt(argc, argv, "vhsp:n:d?")) != EOF) {
+	while ((tmp = getopt(argc, argv, "vhsp:n:d?")) != EOF) {
 		switch (tmp) {
 		case 'p':	/* Test theme */
 			testtheme = optarg;
@@ -319,7 +320,8 @@ void App::Run()
 	if ((Dpy = XOpenDisplay(DisplayName)) == 0) {
 		logStream << APPNAME << ": could not open display '"
 			 << DisplayName << "'" << endl;
-		if (!testing) StopServer();
+		if (!testing)
+			StopServer();
 		exit(ERR_EXIT);
 	}
 
@@ -604,7 +606,8 @@ void App::Login()
 #ifdef USE_PAM
 	/* Setup the PAM environment */
 	try{
-		if (term) pam.setenv("TERM", term);
+		if (term)
+			pam.setenv("TERM", term);
 		pam.setenv("HOME", pw->pw_dir);
 		pam.setenv("PWD", pw->pw_dir);
 		pam.setenv("SHELL", pw->pw_shell);
@@ -648,14 +651,15 @@ void App::Login()
 
 			/* Grow the copy of the environment for the session cookie */
 			int n;
-			for (n = 0; child_env[n] != NULL ; n++);
+			for (n = 0; child_env[n] != NULL ; n++)
+				;
 
 			n++;
 
 			child_env = static_cast<char**>(malloc(sizeof(char*)*(n+1)));
 			memcpy(child_env, old_env, sizeof(char*)*n);
 			child_env[n - 1] = StrConcat("XDG_SESSION_COOKIE=", ck.get_xdg_session_cookie());
-			child_env[n] = 0;
+			child_env[n] = NULL;
 		}
 # endif /* USE_CONSOLEKIT */
 #else
@@ -667,7 +671,8 @@ void App::Login()
 # endif /* USE_CONSOLEKIT */
 		char** child_env = static_cast<char**>(malloc(sizeof(char*)*Num_Of_Variables));
 		int n = 0;
-		if (term) child_env[n++]=StrConcat("TERM=", term);
+		if (term)
+			child_env[n++]=StrConcat("TERM=", term);
 		child_env[n++]=StrConcat("HOME=", pw->pw_dir);
 		child_env[n++]=StrConcat("PWD=", pw->pw_dir);
 		child_env[n++]=StrConcat("SHELL=", pw->pw_shell);
@@ -721,8 +726,8 @@ void App::Login()
 		LoginPanel->Message("Failed to execute login command");
 		sleep(3);
 	} else {
-		 string sessStop = cfg->getOption("sessionstop_cmd");
-		 if (sessStop != "") {
+		string sessStop = cfg->getOption("sessionstop_cmd");
+		if (sessStop != "") {
 			replaceVariables(sessStop, USER_VAR, pw->pw_name);
 			if ( system(sessStop.c_str()) < 0 )
 				logStream << APPNAME << "Session stop command failed" << endl;
@@ -1138,7 +1143,6 @@ void App::blankScreen()
 				   XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
 	XFlush(Dpy);
 	XFreeGC(Dpy, gc);
-
 }
 
 void App::setBackground(const string& themedir)

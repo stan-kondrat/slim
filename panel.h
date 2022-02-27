@@ -41,15 +41,15 @@ struct Rectangle {
 	unsigned int height;
 
 	Rectangle() : x(0), y(0), width(0), height(0) {};
-	Rectangle(int x, int y, unsigned int width,
-					unsigned int height) :
-		x(x), y(y), width(width), height(height) {};
-	bool is_empty() const {
-		return width == 0 || height == 0;
-	}
+	Rectangle(int x, int y, unsigned int width, unsigned int height)
+		: x(x), y(y), width(width), height(height)
+	{}
+
+	bool is_empty() const { return width == 0 || height == 0; }
 };
 
-class Panel {
+class Panel
+{
 public:
 	enum ActionType {
 		Login,
@@ -91,6 +91,7 @@ public:
 	const std::string& GetName(void) const;
 	const std::string& GetPasswd(void) const;
 	void SwitchSession();
+
 private:
 	Panel();
 	void Cursor(int visible);
@@ -112,10 +113,10 @@ private:
 	/* Private data */
 	PanelType mode; /* work mode */
 	Cfg *cfg;
-	Window Win;
-	Window Root;
 	Display *Dpy;
 	int Scr;
+	Window Win;
+	Window Root;
 	int X, Y;
 	GC TextGC;
 	GC WinGC;

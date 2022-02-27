@@ -1,4 +1,5 @@
-/* SLiM - Simple Login Manager
+/*
+ * SLiM - Simple Login Manager
  *  Copyright (C) 1997, 1998 Per Liden
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
@@ -22,24 +23,24 @@ using namespace std;
 
 SwitchUser::SwitchUser(struct passwd *pw, Cfg *c, const string& display,
 					   char** _env)
-	: cfg(c),
-	  Pw(pw),
-	  displayName(display),
-	  env(_env)
+	: cfg(c), Pw(pw), displayName(display), env(_env)
 {
 }
 
-SwitchUser::~SwitchUser() {
+SwitchUser::~SwitchUser()
+{
 	/* Never called */
 }
 
-void SwitchUser::Login(const char* cmd, const char* mcookie) {
+void SwitchUser::Login(const char* cmd, const char* mcookie)
+{
 	SetUserId();
 	SetClientAuth(mcookie);
 	Execute(cmd);
 }
 
-void SwitchUser::SetUserId() {
+void SwitchUser::SetUserId()
+{
 	if( (Pw == 0) ||
 			(initgroups(Pw->pw_name, Pw->pw_gid) != 0) ||
 			(setgid(Pw->pw_gid) != 0) ||
@@ -49,7 +50,8 @@ void SwitchUser::SetUserId() {
 	}
 }
 
-void SwitchUser::Execute(const char* cmd) {
+void SwitchUser::Execute(const char* cmd)
+{
 	if ( chdir(Pw->pw_dir) < 0 )
 		logStream << APPNAME << ": unable to chdir() to user's home: " << strerror(errno) << endl;
 	logStream.closeLog();
@@ -62,7 +64,8 @@ void SwitchUser::Execute(const char* cmd) {
 	logStream << APPNAME << ": could not execute login command: " << strerror(errno) << endl;
 }
 
-void SwitchUser::SetClientAuth(const char* mcookie) {
+void SwitchUser::SetClientAuth(const char* mcookie)
+{
 	string home = string(Pw->pw_dir);
 	string authfile = home + "/.Xauthority";
 	remove(authfile.c_str());

@@ -14,8 +14,7 @@
 #include "log.h"
 #include <iostream>
 
-bool
-LogUnit::openLog(const char * filename)
+bool LogUnit::openLog(const char * filename)
 {
 	if (logFile.is_open()) {
 		cerr << APPNAME
@@ -28,8 +27,7 @@ LogUnit::openLog(const char * filename)
 	return !(logFile.fail());
 }
 
-void
-LogUnit::closeLog()
+void LogUnit::closeLog()
 {
 	if (logFile.is_open())
 		logFile.close();
