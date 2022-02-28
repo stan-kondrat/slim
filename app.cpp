@@ -138,28 +138,21 @@ void User1Signal(int sig)
 	signal(sig, User1Signal);
 }
 
+App::App(int argc, char** argv)
+	: Dpy(NULL), ServerPID(-1), serverStarted(false),
 #ifdef USE_PAM
-App::App(int argc, char** argv)
-  : pam(conv, static_cast<void*>(&LoginPanel)),
-#else
-App::App(int argc, char** argv)
-  :
+	  pam(conv, static_cast<void*>(&LoginPanel)),
 #endif
-	mcookiesize(32)		/* Must be divisible by 4 */
+	  firstlogin(true), daemonmode(false), force_nodaemon(false),
+	  testing(false),
+#ifdef USE_CONSOLEKIT
+	  consolekit_support_enabled(true),
+#endif
+	  mcookiesize(32)		/* Must be divisible by 4 */
 {
 	int tmp;
-	ServerPID = -1;
-	testing = false;
-	serverStarted = false;
 	mcookie = string(App::mcookiesize, 'a');
-	daemonmode = false;
-	force_nodaemon = false;
-	firstlogin = true;
-#ifdef USE_CONSOLEKIT
-	consolekit_support_enabled = true;
-#endif
-	Dpy = NULL;
-
+	
 	/* Parse command line
 	   Note: we force a option for nodaemon switch to handle "-nodaemon" */
 	while ((tmp = getopt(argc, argv, "vhsp:n:d?")) != EOF) {

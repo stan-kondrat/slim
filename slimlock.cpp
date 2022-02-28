@@ -53,6 +53,7 @@ void *RaiseWindow(void *data);
 Display* dpy;
 int scr;
 Window win;
+Window root;
 Cfg* cfg;
 Panel* loginPanel;
 string themeName = "";
@@ -155,7 +156,7 @@ int main(int argc, char **argv)
 	wa.background_pixel = BlackPixel(dpy, scr);
 
 	// Create a full screen window
-	Window root = RootWindow(dpy, scr);
+	root = RootWindow(dpy, scr);
 	win = XCreateWindow(dpy, root,
 			0, 0, DisplayWidth(dpy, scr), DisplayHeight(dpy, scr),
 			0, DefaultDepth(dpy, scr), CopyFromParent,
