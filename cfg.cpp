@@ -55,6 +55,7 @@ Cfg::Cfg()
 	options.insert(option("authfile","/var/run/slim.auth"));
 	options.insert(option("shutdown_msg","The system is halting..."));
 	options.insert(option("reboot_msg","The system is rebooting..."));
+	options.insert(option("sessions", ""));
 	options.insert(option("sessiondir",""));
 	options.insert(option("hidecursor","false"));
 
