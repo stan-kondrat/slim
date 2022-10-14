@@ -143,6 +143,7 @@ App::App(int argc, char** argv)
 #ifdef USE_PAM
 	  pam(conv, static_cast<void*>(&LoginPanel)),
 #endif
+	  cfg(0),
 	  firstlogin(true), daemonmode(false), force_nodaemon(false),
 	  testing(false),
 #ifdef USE_CONSOLEKIT
@@ -155,8 +156,21 @@ App::App(int argc, char** argv)
 	
 	/* Parse command line
 	   Note: we force a option for nodaemon switch to handle "-nodaemon" */
-	while ((tmp = getopt(argc, argv, "vhsp:n:d?")) != EOF) {
+	while ((tmp = getopt(argc, argv, "c:vhsp:n:d?")) != EOF) {
 		switch (tmp) {
+		case 'c': /* Config */
+			if (optarg == NULL) {
+				cerr << "The -c option requires an argument" << endl;
+				exit(ERR_EXIT);
+			}
+			if ( cfg != 0 )
+			{
+				cerr << "The -c option can only be given once" << endl;
+				exit(ERR_EXIT);
+			}
+			cfg = new Cfg;
+			cfg->readConf(optarg);
+			break;
 		case 'p':	/* Test theme */
 			testtheme = optarg;
 			testing = true;
@@ -186,6 +200,7 @@ App::App(int argc, char** argv)
 		case 'h':   /* Help */
 			std::cout << "usage:  " << APPNAME << " [option ...]" << endl
 			<< "options:" << endl
+			<< "	-c /path/to/config: select configuration file" << endl
 			<< "	-d: daemon mode" << endl
 			<< "	-n: no-daemon mode" << endl
 			<< "	-v: show version" << endl
@@ -219,8 +234,11 @@ void App::Run()
 #endif
 
 	/* Read configuration and theme */
-	cfg = new Cfg;
-	cfg->readConf(CFGFILE);
+	if ( cfg == 0 )
+	{
+		cfg = new Cfg;
+		cfg->readConf(CFGFILE);
+	}
 	string themebase = "";
 	string themefile = "";
 	string themedir = "";
