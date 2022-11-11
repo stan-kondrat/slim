@@ -140,6 +140,7 @@ private:
 	ActionType action;
 	FieldType field;
 	//Pixmap   background;
+	XGlyphInfo MsgExtents;
 	
 	/* Username/Password */
 	std::string NameBuffer;
