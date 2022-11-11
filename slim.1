@@ -1,4 +1,4 @@
-.TH slim 1 "January 29, 2022" "" ""
+.TH slim 1 "October 14, 2022" "" ""
 .SH NAME
 \fBslim \fP- Simple LogIn Manager
 \fB
@@ -94,6 +94,11 @@ executes a custom command (by default takes a screenshot)
 .B
 F1
 choose session type from session list.
+.SH BUGS
+On login, \fBslim\fP relies on external tools, normally \fBsessreg\fP, to 
+provide the registration of the user's session. There seems to be a bug in 
+the common sessreg implementation which causes the registration to fail if 
+a user logs out then rapidly logs back in.
 .SH AUTHORS 
 Simone Rota <sip@varlock.com>
 .PP
