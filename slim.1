@@ -1,4 +1,4 @@
-.TH slim 1 "October 14, 2022" "" ""
+.TH slim 1 "November 14, 2022" "" ""
 .SH NAME
 \fBslim \fP- Simple LogIn Manager
 \fB
@@ -50,8 +50,9 @@ run \fBslim\fP in daemon mode
 \fBslim\fP \fB-p\fP /usr/share/slim/themes/default
 preview of the default theme
 .SH STARTING SLIM AT BOOT
-Please refer to documentation of your Operating System to make \fBslim\fP
-automatically startup after the system boots.
+Please refer to the documentation of your Operating System to make \fBslim\fP
+automatically startup after the system boots. In particular, the method is
+very different between SysV, OpenRC and systemd init processes.
 .SH CONFIGURATION
 Global configuration is stored in the /etc/slim.conf file. See the comments
 inside the file for a detailed explanation of the \fIoptions\fP.

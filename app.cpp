@@ -91,7 +91,9 @@ int conv(int num_msg, const struct pam_message **msg,
 			case PAM_ERROR_MSG:
 			case PAM_TEXT_INFO:
 				/* We simply write these to the log
-				   TODO: Maybe we should simply ignore them */
+				   TODO: Maybe we should show them. In particular, if you 
+				         have a fingerprint reader, PAM passes instructions
+				         in PAM_TEXT_INFO messages */
 				logStream << APPNAME << ": " << msg[i]->msg << endl;
 				break;
 		}
@@ -409,7 +411,8 @@ void App::Run()
 			LoginPanel->OpenPanel();
 		}
 
-		LoginPanel->Reset();
+		if ( firstloop )
+			LoginPanel->Reset();
 
 		if (firstloop && cfg->getOption("default_user") != "")
 		{
@@ -430,7 +433,6 @@ void App::Run()
 				cfg_passwd_timeout = 60;
 			panelclosed = 0;
 			firstloop = false;
-			LoginPanel->ClearPanel();
 			LoginPanel->WrongPassword(cfg_passwd_timeout);
 			XBell(Dpy, 100);
 			continue;

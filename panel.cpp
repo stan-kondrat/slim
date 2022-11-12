@@ -271,6 +271,7 @@ void Panel::ClosePanel()
 	XFlush(Dpy);
 }
 
+/// @deprecated only used by Error now
 void Panel::ClearPanel()
 {
 	session_name = "";
@@ -287,6 +288,13 @@ void Panel::WrongPassword(int timeout)
 {
 	string message;
 	XWindowAttributes attributes;
+
+	if ( mode == Mode_DM )
+	{
+		session_name = "";
+		session_exec = "";
+		XClearWindow(Dpy, Root);
+	}
 
 #if 0
 	if (CapsLockOn)
@@ -326,6 +334,10 @@ void Panel::WrongPassword(int timeout)
 	ResetPasswd();
 	if ( mode == Mode_DM )
 	{
+		if ( cfg->getIntOption("keep_user_on_fail") == 0 )
+		{
+			ResetName();
+		}
 		field = Get_Name;
 	}
 	OnExpose();
@@ -375,6 +387,7 @@ void Panel::Message(const string& text)
 	XftDrawDestroy(draw);
 }
 
+/// @deprecated this method is never used
 void Panel::Error(const string& text)
 {
 	ClosePanel();
