@@ -271,19 +271,6 @@ void Panel::ClosePanel()
 	XFlush(Dpy);
 }
 
-/// @deprecated only used by Error now
-void Panel::ClearPanel()
-{
-	session_name = "";
-    session_exec = "";
-	Reset();
-	XClearWindow(Dpy, Root);
-	XClearWindow(Dpy, Win);
-	Cursor(SHOW);
-	ShowText();
-	XFlush(Dpy);
-}
-
 void Panel::WrongPassword(int timeout)
 {
 	string message;
@@ -385,16 +372,6 @@ void Panel::Message(const string& text)
 					 shadowXOffset, shadowYOffset);
 	XFlush(Dpy);
 	XftDrawDestroy(draw);
-}
-
-/// @deprecated this method is never used
-void Panel::Error(const string& text)
-{
-	ClosePanel();
-	Message(text);
-	sleep(ERROR_DURATION);
-	OpenPanel();
-	ClearPanel();
 }
 
 unsigned long Panel::GetColor(const char* colorname)

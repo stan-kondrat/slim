@@ -412,11 +412,11 @@ void App::Run()
 		}
 
 		if ( firstloop )
+		{
 			LoginPanel->Reset();
 
-		if (firstloop && cfg->getOption("default_user") != "")
-		{
-			LoginPanel->SetName(cfg->getOption("default_user"));
+			if ( cfg->getOption("default_user") != "" )
+				LoginPanel->SetName(cfg->getOption("default_user"));
 		}
 
 		if (firstloop)
