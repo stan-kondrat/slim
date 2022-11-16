@@ -135,8 +135,10 @@ void CatchSignal(int sig)
 	exit(ERR_EXIT);
 }
 
+static volatile bool got_sigusr1 = false;
 void User1Signal(int sig)
 {
+	got_sigusr1 = true;
 	signal(sig, User1Signal);
 }
 
@@ -776,15 +778,15 @@ void App::Login()
 
 	/* Send TERM signal to clientgroup, if error send KILL */
 	if (killpg(pid, SIGTERM))
-	killpg(pid, SIGKILL);
+		killpg(pid, SIGKILL);
 
 	HideCursor();
 
 #ifndef XNEST_DEBUG
 	RestartServer();	/// @bug recursive call!
 #endif
-
 }
+
 
 void App::Reboot()
 {
@@ -832,6 +834,7 @@ void App::Halt()
 		logStream << APPNAME << ": Failed to execute halt command" << endl;
 	exit(OK_EXIT);
 }
+
 
 void App::Suspend()
 {
@@ -979,6 +982,14 @@ int App::WaitForServer()
 	int	ncycles	 = 120;
 	int	cycles;
 
+	/* The X server should send us a USR1 signal when it's ready. We trap 	*/
+	/* that signal and set a flag. If that's not already happened, wait for */
+	/* a good time. The incoming signal should terminate the sleep() call   */
+	/* with a non-zero return value. Otherwise, time out and try anyway but */
+	/* log the oddity.                                                      */
+	if ( !got_sigusr1 && ( sleep(5)==0 ) )
+		logStream << "WaitForServer: Not seen SigUSR1 from Xserver" << endl;
+
 	for (cycles = 0; cycles < ncycles; cycles++) {
 		if ((Dpy = XOpenDisplay(DisplayName))) {
 			XSetIOErrorHandler(xioerror);
@@ -996,7 +1007,9 @@ int App::WaitForServer()
 
 int App::StartServer()
 {
-	ServerPID = fork();
+	got_sigusr1 = false;	// We're about to start the X server so clear the semaphore
+
+	ServerPID = fork();		/// @bug why do this so early? Just before the switch makes more sense
 
 	int argc = 1, pos = 0, i;
 	static const int MAX_XSERVER_ARGS = 256;
