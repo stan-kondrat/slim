@@ -124,8 +124,8 @@ Cfg::Cfg()
 	// What to do if the authorisation fails
 	options.insert(option("keep_user_on_fail", "0"));
 	options.insert(option("wrong_passwd_timeout", "2"));
-	options.insert(option("passwd_feedback_x", "50%"));
-	options.insert(option("passwd_feedback_y", "10%"));
+	options.insert(option("passwd_feedback_x", "-1"));
+	options.insert(option("passwd_feedback_y", "-1"));
 	options.insert(option("passwd_feedback_msg", "Authentication failed"));
 	options.insert(option("passwd_feedback_capslock", "Authentication failed (CapsLock is on)"));
 

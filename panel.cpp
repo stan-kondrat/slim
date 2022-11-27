@@ -308,8 +308,9 @@ void Panel::WrongPassword(int timeout)
 	if ( timeout > 0 )
 	{
 		OnExpose();
-		SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
-			&msgshadowcolor, shadowXOffset, shadowYOffset);
+		if ( msg_x >= 0 && msg_y >= 0 )
+			SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
+					&msgshadowcolor, shadowXOffset, shadowYOffset);
 
 		if (cfg->getOption("bell") == "1")
 			XBell(Dpy, 100);
@@ -328,8 +329,9 @@ void Panel::WrongPassword(int timeout)
 	OnExpose();
 	// The message should stay on the screen even after the password field is
 	// cleared, methinks. I don't like this solution, but it works.
-	SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
-		&msgshadowcolor, shadowXOffset, shadowYOffset);
+	if ( msg_x >= 0 && msg_y >= 0 )
+		SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
+				&msgshadowcolor, shadowXOffset, shadowYOffset);
 	XSync(Dpy, True);
 	XftDrawDestroy(draw);
 }
