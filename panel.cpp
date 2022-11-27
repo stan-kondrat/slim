@@ -278,8 +278,6 @@ void Panel::WrongPassword(int timeout)
 
 	if ( mode == Mode_DM )
 	{
-		session_name = "";
-		session_exec = "";
 		XClearWindow(Dpy, Root);
 	}
 
@@ -796,12 +794,12 @@ string Panel::getSession()
 /* choose next available session type */
 void Panel::SwitchSession()
 {
-        pair<string,string> ses = cfg->nextSession();
-        session_name = ses.first;
-        session_exec = ses.second;
-        if (session_name.size() > 0) {
-                ShowSession();
-        }
+	pair<string,string> ses = cfg->nextSession();
+	session_name = ses.first;
+	session_exec = ses.second;
+	if (session_name.size() > 0) {
+		ShowSession();
+	}
  }
 
 /* Display session type on the screen */

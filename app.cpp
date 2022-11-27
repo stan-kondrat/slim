@@ -937,7 +937,10 @@ void App::Exit()
 
 	if (testing)
 	{
-		const char* testmsg = "This is a test message :-)";
+		std::string testmsg = "User ";
+		testmsg += LoginPanel->GetName();
+		testmsg += " auth OK, session=";
+		testmsg += LoginPanel->getSession();
 		LoginPanel->Message(testmsg);
 		sleep(3);
 		delete LoginPanel;
