@@ -290,6 +290,7 @@ void App::Run()
 		pam.start("slim");
 		pam.set_item(PAM::Authenticator::TTY, DisplayName);
 		pam.set_item(PAM::Authenticator::Requestor, "root");
+		pam.setenv("XDG_SESSION_CLASS", "greeter");	// so eLogind works right
 	}
 	catch(PAM::Exception& e){
 		logStream << APPNAME << ": " << e << endl;
