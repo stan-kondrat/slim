@@ -1403,7 +1403,7 @@ void App::OpenLog()
 {
 	if ( !logStream.openLog( cfg->getOption("logfile").c_str() ) )
 	{
-		cerr <<  APPNAME << ": Could not accesss log file: " << cfg->getOption("logfile") << endl;
+		cerr <<  APPNAME << ": Could not access log file: " << cfg->getOption("logfile") << endl;
 		RemoveLock();
 		exit(ERR_EXIT);
 	}
