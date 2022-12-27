@@ -165,8 +165,10 @@ App::App(int argc, char** argv)
 	mcookie = string(App::mcookiesize, 'a');
 	
 	/* Parse command line
-	   Note: we force a option for nodaemon switch to handle "-nodaemon" */
-	while ((tmp = getopt(argc, argv, "c:vhsp:n:d?")) != EOF)
+	   Note: we allow an arg for the -n option to handle "-nodaemon" as
+			 originally quoted in the docs. However, the parser has never
+			 checked the arg, so "-noddy" works exactly the same */
+	while ((tmp = getopt(argc, argv, "c:vhsp:n::d")) != EOF)
 	{
 		switch (tmp)
 		{
@@ -215,19 +217,20 @@ App::App(int argc, char** argv)
 			break;
 #endif
 
-		case '?':	/* Illegal */
+		case '?':	/* Illegal option - getopt will have printed an error */
 			std::cout << endl;
 		case 'h':   /* Help */
 			std::cout << "usage:  " << APPNAME << " [option ...]" << endl
 			<< "options:" << endl
-			<< "	-c /path/to/config: select configuration file" << endl
-			<< "	-d: daemon mode" << endl
-			<< "	-n: no-daemon mode" << endl
-			<< "	-v: show version" << endl
+			<< "  -c /path/to/config   select configuration file" << endl
+			<< "  -d                   daemon mode" << endl
+			<< "  -n                   no-daemon mode" << endl
 #ifdef USE_CONSOLEKIT
-			<< "	-s: start for systemd, disable consolekit support" << endl
+			<< "  -s                   start for systemd, disable consolekit support" << endl
 #endif
-			<< "	-p /path/to/theme/dir: preview theme" << endl;
+			<< "  -p /path/to/themedir preview theme" << endl
+			<< "  -h                   show this help" << endl
+			<< "  -v                   show version" << endl;
 			exit(OK_EXIT);
 			break;
 		}
