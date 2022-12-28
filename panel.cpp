@@ -34,6 +34,19 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		Win = root;
 		viewport = GetPrimaryViewport();
 	}
+	else
+	{
+		/* The existing behaviour in DM mode was to always use the full 
+		 * screen size */
+		viewport.x = 0;
+		viewport.y = 0;
+		// AFAICT the following two lines, used in GetPrimaryViewport, do
+		// exactly the same as the ones that follow, which were used elsewhere
+		//viewport.width = DisplayWidth(Dpy, Scr);
+		//viewport.height = DisplayHeight(Dpy, Scr);
+		viewport.width = XWidthOfScreen(ScreenOfDisplay(Dpy, Scr));
+		viewport.height = XHeightOfScreen(ScreenOfDisplay(Dpy, Scr));
+	}
 
 	/* Init GC */
 	XGCValues gcv;
@@ -42,10 +55,8 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	gcv.foreground = GetColor("black");
 	gcv.background = GetColor("white");
 	gcv.graphics_exposures = False;
-	if (mode == Mode_Lock)
-		TextGC = XCreateGC(Dpy, Win, gcm, &gcv);
-	else
-		TextGC = XCreateGC(Dpy, Root, gcm, &gcv);
+
+	TextGC = XCreateGC(Dpy, Root, gcm, &gcv);
 
 	if (mode == Mode_Lock) {
 		gcm = GCGraphicsExposures;
@@ -128,70 +139,51 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		}
 	}
 
-	if (mode == Mode_Lock) {
-		if (bgstyle == "stretch")
-			bg->Resize(viewport.width, viewport.height);
-			//bg->Resize(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-			//			XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		else if (bgstyle == "tile")
-			bg->Tile(viewport.width, viewport.height);
-		else if (bgstyle == "center") {
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		} else { // plain color or error
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		}
-	} else {
-		if (bgstyle == "stretch") {
-			bg->Resize(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		} else if (bgstyle == "tile") {
-			bg->Tile(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		} else if (bgstyle == "center") {
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-					XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-					hexvalue.c_str());
-		} else { /* plain color or error */
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-				   XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-				   hexvalue.c_str());
-		}
+	if (bgstyle == "stretch")
+		bg->Resize(viewport.width, viewport.height);
+	else if (bgstyle == "tile")
+		bg->Tile(viewport.width, viewport.height);
+	else if (bgstyle == "center") {
+		string hexvalue = cfg->getOption("background_color");
+		hexvalue = hexvalue.substr(1,6);
+		bg->Center(viewport.width,
+			viewport.height,
+			hexvalue.c_str());
+	} else { // plain color or error
+		string hexvalue = cfg->getOption("background_color");
+		hexvalue = hexvalue.substr(1,6);
+		bg->Center(viewport.width,
+			viewport.height,
+			hexvalue.c_str());
 	}
 
 	string cfgX = cfg->getOption("input_panel_x");
 	string cfgY = cfg->getOption("input_panel_y");
 
-	if (mode == Mode_Lock) {
-		X = Cfg::absolutepos(cfgX, viewport.width, image->Width());
-		Y = Cfg::absolutepos(cfgY, viewport.height, image->Height());
+	X = Cfg::absolutepos(cfgX, viewport.width, image->Width());
+	Y = Cfg::absolutepos(cfgY, viewport.height, image->Height());
 
+	if (mode == Mode_Lock) {
+		// In slimlock, the window we draw on is always the root, not the 
+		// XSimpleWindow created by OpenPanel to represent the panel area.
+		// Thus we apply a hack to offset the input positions. It's a shame
+		// we don't do the job properly, as this hack isn't applied to any
+		// of the static text
 		input_name_x += X;
 		input_name_y += Y;
 		input_pass_x += X;
 		input_pass_y += Y;
-	} else {
-		X = Cfg::absolutepos(cfgX, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), image->Width());
-		Y = Cfg::absolutepos(cfgY, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), image->Height());
 	}
 
 	if (mode == Mode_Lock) {
-		/* Merge image into background without crop */
+		/* Merge image into background without crop, so that PanelPixmap is
+		 * the whole screen (background image with panel drawn on it) */
 		image->Merge_non_crop(bg, X, Y);
-		PanelPixmap = image->createPixmap(Dpy, Scr, Win);
+		PanelPixmap = image->createPixmap(Dpy, Scr, Win);	// Win == Root
 	} else {
-		/* Merge image into background */
+		/* Merge image with cropped background, so that PanelPixmap is the
+		 * panel with the relevant part of the X root image included instead
+		 * of the alpha channel */
 		image->Merge(bg, X, Y);
 		PanelPixmap = image->createPixmap(Dpy, Scr, Root);
 	}
@@ -239,6 +231,8 @@ Panel::~Panel()
 	delete image;
 }
 
+
+/* Open the login panel. Not used by slimlock */
 void Panel::OpenPanel()
 {
 	/* Create window */
@@ -358,13 +352,8 @@ void Panel::Message(const string& text)
 	int shadowYOffset = cfg->getIntOption("msg_shadow_yoffset");
 	int msg_x, msg_y;
 
-	if (mode == Mode_Lock) {
-		msg_x = Cfg::absolutepos(cfgX, viewport.width, extents.width);
-		msg_y = Cfg::absolutepos(cfgY, viewport.height, extents.height);
-	} else {
-		msg_x = Cfg::absolutepos(cfgX, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.width);
-		msg_y = Cfg::absolutepos(cfgY, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.height);
-	}
+	msg_x = Cfg::absolutepos(cfgX, viewport.width, extents.width);
+	msg_y = Cfg::absolutepos(cfgY, viewport.height, extents.height);
 
 	SlimDrawString8 (draw, &msgcolor, msgfont, msg_x, msg_y,
 					 text,
@@ -573,7 +562,7 @@ bool Panel::OnKeyPress(XEvent& event)
 	XLookupString(&event.xkey, &ascii, 1, &keysym, &compstatus);
 	switch(keysym){
 		case XK_F1:
-			SwitchSession();
+			SwitchSession();	/// @bug nasty results in slimlock
 			return true;
 
 		case XK_F11:
@@ -715,7 +704,8 @@ bool Panel::OnKeyPress(XEvent& event)
 	return true;
 }
 
-/* Draw welcome and "enter username" message */
+
+/* Draw welcome and "enter username" messages */
 void Panel::ShowText()
 {
 	string cfgX, cfgY;
@@ -724,6 +714,8 @@ void Panel::ShowText()
 	bool singleInputMode = ( input_name_x == input_pass_x
 			    && input_name_y == input_pass_y );
 
+	/// @bug this draw context is assumed relative to the panel but in lock
+	///		 mode it's actually relative to the background
 	XftDraw *draw = XftDrawCreate(Dpy, Win,
 		  DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 	/* welcome message */
@@ -745,7 +737,7 @@ void Panel::ShowText()
 
 	/* Enter username-password message */
 	string msg;
-	if ((!singleInputMode|| field == Get_Passwd) && mode == Mode_DM) {
+	if (!singleInputMode|| field == Get_Passwd) {
 		msg = cfg->getOption("password_msg");
 		XftTextExtents8(Dpy, enterfont, (XftChar8*)msg.c_str(),
 						strlen(msg.c_str()), &extents);
@@ -761,7 +753,7 @@ void Panel::ShowText()
 		}
 	}
 
-	if (!singleInputMode|| field == Get_Name) {
+	if ((!singleInputMode|| field == Get_Name) && mode == Mode_DM) {
 		msg = cfg->getOption("username_msg");
 		XftTextExtents8(Dpy, enterfont, (XftChar8*)msg.c_str(),
 						strlen(msg.c_str()), &extents);
@@ -788,12 +780,14 @@ void Panel::ShowText()
 	}
 }
 
+
 string Panel::getSession()
 {
 	return session_exec;
 }
 
-/* choose next available session type */
+
+/* choose next available session type. Inappropriate in lock mode */
 void Panel::SwitchSession()
 {
 	pair<string,string> ses = cfg->nextSession();
@@ -804,7 +798,8 @@ void Panel::SwitchSession()
 	}
  }
 
-/* Display session type on the screen */
+
+/* Display session type on the screen. Not suitable in lock mode */
 void Panel::ShowSession()
 {
 	string msg_x, msg_y;
@@ -820,8 +815,8 @@ void Panel::ShowSession()
 					currsession.length(), &extents);
 	msg_x = cfg->getOption("session_x");
 	msg_y = cfg->getOption("session_y");
-	int x = Cfg::absolutepos(msg_x, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.width);
-	int y = Cfg::absolutepos(msg_y, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.height);
+	int x = Cfg::absolutepos(msg_x, viewport.width, extents.width);
+	int y = Cfg::absolutepos(msg_y, viewport.height, extents.height);
 	int shadowXOffset = cfg->getIntOption("session_shadow_xoffset");
 	int shadowYOffset = cfg->getIntOption("session_shadow_yoffset");
 
@@ -839,26 +834,18 @@ void Panel::SlimDrawString8(XftDraw *d, XftColor *color, XftFont *font,
 							XftColor* shadowColor,
 							int xOffset, int yOffset)
 {
-	int calc_x = 0;
-	int calc_y = 0;
 	if (mode == Mode_Lock) {
-		calc_x = viewport.x;
-		calc_y = viewport.y;
+		x += viewport.x;
+		y += viewport.y;
 	}
 
 	if (xOffset && yOffset) {
-		XftDrawStringUtf8(d, shadowColor, font,
-			x + xOffset + calc_x,
-			y + yOffset + calc_y,
-			reinterpret_cast<const FcChar8*>(str.c_str()),
-			str.length());
+		XftDrawStringUtf8(d, shadowColor, font, x+xOffset, y+yOffset,
+			reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
 	}
 
-	XftDrawStringUtf8(d, color, font,
-		x + calc_x,
-		y + calc_y,
-		reinterpret_cast<const FcChar8*>(str.c_str()),
-		str.length());
+	XftDrawStringUtf8(d, color, font, x, y,
+		reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
 }
 
 Panel::ActionType Panel::getAction(void) const
@@ -883,6 +870,11 @@ void Panel::ResetPasswd(void)
 	HiddenPasswdBuffer.clear();
 }
 
+
+/* Pre-load the user name input box with the provided string.
+ * Used to set the default user, if so configured, and by slimlock to set the
+ * currently logged-in user.
+ */
 void Panel::SetName(const string& name)
 {
 	NameBuffer=name;
@@ -902,6 +894,11 @@ const string& Panel::GetPasswd(void) const
 	return PasswdBuffer;
 }
 
+
+/**
+ * Identify the viewport (physical screen?) to draw on. This allows slimlock
+ * to handle Xinerama-type multi-monitor setups. Not currently used by slim
+ */
 Rectangle Panel::GetPrimaryViewport()
 {
 	Rectangle fallback;
@@ -966,6 +963,11 @@ Rectangle Panel::GetPrimaryViewport()
 	return result;
 }
 
+
+/**
+ * Re-draw the background over a rectangle. This method is only used in "lock"
+ * mode - the DM mode uses XClearArea instead.
+ */
 void Panel::ApplyBackground(Rectangle rect)
 {
 	int ret = 0;
@@ -984,3 +986,4 @@ void Panel::ApplyBackground(Rectangle rect)
 	if (!ret)
 	    cerr << APPNAME << ": failed to put pixmap on the screen\n.";
 }
+

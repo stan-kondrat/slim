@@ -1281,6 +1281,13 @@ void App::blankScreen()
 	XFreeGC(Dpy, gc);
 }
 
+
+/**
+ * Load the background image, adjust it according to the style setting, and
+ * set it as the window background for the root window.
+ * @bug much of this is duplicated in Panel::Panel to turn the panel PNG into
+ *      a PixMap
+ */
 void App::setBackground(const string& themedir)
 {
 	string filename;
