@@ -644,7 +644,8 @@ bool Panel::OnKeyPress(XEvent& event)
 	XLookupString(&event.xkey, &ascii, 1, &keysym, &compstatus);
 	switch(keysym){
 		case XK_F1:
-			SwitchSession();	/// @bug nasty results in slimlock
+			if ( mode != Mode_Lock )	// Can't change session in a screen lock
+				SwitchSession();
 			return true;
 
 		case XK_F11:
@@ -655,22 +656,24 @@ bool Panel::OnKeyPress(XEvent& event)
 
 		case XK_Return:
 		case XK_KP_Enter:
-			if (field==Get_Name){
+			if (field==Get_Name)
+			{
 				/* Don't allow an empty username */
 				if (NameBuffer.empty())
 					return true;
 
-				if (NameBuffer==CONSOLE_STR){
+				if (NameBuffer==CONSOLE_STR)
 					action = Console;
-				} else if (NameBuffer==HALT_STR){
+				else if (NameBuffer==HALT_STR)
 					action = Halt;
-				} else if (NameBuffer==REBOOT_STR){
+				else if (NameBuffer==REBOOT_STR)
 					action = Reboot;
-				} else if (NameBuffer==SUSPEND_STR){
+				else if (NameBuffer==SUSPEND_STR)
 					action = Suspend;
-				} else if (NameBuffer==EXIT_STR){
+				else if (NameBuffer==EXIT_STR)
 					action = Exit;
-				} else{
+				else
+				{
 					if (mode == Mode_DM)
 						action = Login;
 					else
@@ -691,7 +694,8 @@ bool Panel::OnKeyPress(XEvent& event)
 
 		case XK_w:
 		case XK_u:
-			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask) {
+			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask)
+			{
 				switch(field) {
 					case Get_Passwd:
 						formerString = HiddenPasswdBuffer;
@@ -705,32 +709,37 @@ bool Panel::OnKeyPress(XEvent& event)
 				}
 				break;
 			}
+			/* Deliberate fall-through */
 		case XK_h:
-			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask) {
+			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask)
+			{
 				EraseLastChar(formerString);
 				break;
 			}
 			/* Deliberate fall-through */
-
 		default:
-			if (isprint(ascii) && (keysym < XK_Shift_L || keysym > XK_Hyper_R)){
+			if (isprint(ascii) && (keysym < XK_Shift_L || keysym > XK_Hyper_R))
+			{
 				switch(field) {
 					case Get_Name:
 						formerString=NameBuffer;
-						if (NameBuffer.length() < INPUT_MAXLENGTH_NAME-1){
+						if (NameBuffer.length() < INPUT_MAXLENGTH_NAME-1)
+						{
 							NameBuffer.append(&ascii,1);
 						}
 						break;
 					case Get_Passwd:
 						formerString=HiddenPasswdBuffer;
-						if (PasswdBuffer.length() < INPUT_MAXLENGTH_PASSWD-1){
+						if (PasswdBuffer.length() < INPUT_MAXLENGTH_PASSWD-1)
+						{
 							PasswdBuffer.append(&ascii,1);
 							HiddenPasswdBuffer.append("*");
 						}
 					break;
 				}
 			}
-			else {	// *RP* I think this is to fix the fake bolding if the user presses TAB
+			else
+			{	// *RP* I think this is to fix the fake bolding if the user presses TAB
 				return true; //nodraw if notchange
 			}
 			break;
@@ -754,7 +763,8 @@ bool Panel::OnKeyPress(XEvent& event)
 			break;
 	}
 
-	if (!formerString.empty()){
+	if (!formerString.empty())
+	{
 		const char* txth = "Wj"; /* get proper maximum height ? */
 		XftTextExtents8(Dpy, font,
 				reinterpret_cast<const XftChar8*>(txth), strlen(txth), &extents);
@@ -774,7 +784,8 @@ bool Panel::OnKeyPress(XEvent& event)
 				maxLength + 6, maxHeight + 6, false);
 	}
 
-	if (!text.empty()) {
+	if (!text.empty())
+	{
 		SlimDrawString8 (draw, &inputcolor, font, xx, yy,
 				 text,
 				 &inputshadowcolor,
