@@ -15,6 +15,7 @@
 #include <poll.h>
 #include <libgen.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/Xatom.h>		// for XA_PIXMAP
 #include <unistd.h>			// for sleep
 #include "const.h"
 #include "image.h"
@@ -67,6 +68,9 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 			exit(ERR_EXIT);
 		}
 	}
+
+	// Intern _XROOTPMAP_ID property  -  does this belong here?
+	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
 
 	font = XftFontOpenName(Dpy, Scr, cfg->getOption("input_font").c_str());
 	welcomefont = XftFontOpenName(Dpy, Scr, cfg->getOption("welcome_font").c_str());
@@ -232,6 +236,84 @@ Panel::~Panel()
 }
 
 
+/**
+ * Load the background image, adjust it according to the style setting, and
+ * set it as the window background for the root window.
+ * @bug much of this is duplicated in Panel::Panel to turn the panel PNG into
+ *      a PixMap
+ */
+void Panel::setBackground(const string& themedir)
+{
+	string filename;
+	filename = themedir + "/background.png";
+	Image *image = new Image;
+	bool loaded = image->Read(filename.c_str());
+	if (!loaded)
+	{ /* try jpeg if png failed */
+		filename = themedir + "/background.jpg";
+		loaded = image->Read(filename.c_str());
+	}
+
+	if (loaded)
+	{
+		string bgstyle = cfg->getOption("background_style");
+		if (bgstyle == "stretch")
+		{
+			image->Resize(viewport.width, viewport.height);
+		}
+		else if (bgstyle == "tile")
+		{
+			image->Tile(viewport.width, viewport.height);
+		}
+		else if (bgstyle == "center")
+		{
+			string hexvalue = cfg->getOption("background_color");
+			hexvalue = hexvalue.substr(1,6);
+			image->Center(viewport.width,
+				viewport.height,
+				hexvalue.c_str());
+		}
+		else
+		{ /* plain color or error */
+			string hexvalue = cfg->getOption("background_color");
+			hexvalue = hexvalue.substr(1,6);
+			image->Center(viewport.width,
+				viewport.height,
+				hexvalue.c_str());
+		}
+		Pixmap p = image->createPixmap(Dpy, Scr, Root);
+		XSetWindowBackgroundPixmap(Dpy, Root, p);
+		XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
+					PropModeReplace, (unsigned char *)&p, 1);
+	}
+	XClearWindow(Dpy, Root);
+
+	XFlush(Dpy);
+	delete image;
+}
+
+
+/* Hide the cursor */
+void Panel::HideCursor()
+{
+	if (cfg->getOption("hidecursor") == "true")
+	{
+		XColor	black;
+		char	cursordata[1];
+		Pixmap	cursorpixmap;
+		Cursor	cursor;
+		cursordata[0]=0;
+		cursorpixmap = XCreateBitmapFromData(Dpy, Root, cursordata, 1, 1);
+		black.red=0;
+		black.green=0;
+		black.blue=0;
+		cursor = XCreatePixmapCursor(Dpy, cursorpixmap, cursorpixmap, &black, &black, 0, 0);
+		//XFreePixmap(dpy, cursorpixmap);		// man page is confusing as to whether this is right
+		XDefineCursor(Dpy, Root, cursor);
+	}
+}
+
+
 /* Open the login panel. Not used by slimlock */
 void Panel::OpenPanel()
 {
@@ -383,7 +465,7 @@ unsigned long Panel::GetColor(const char* colorname)
 	return color.pixel;
 }
 
-void Panel::Cursor(int visible)
+void Panel::TextCursor(int visible)
 {
 	const char* text = NULL;
 	int xx = 0, yy = 0, y2 = 0, cheight = 0;
@@ -525,7 +607,7 @@ void Panel::OnExpose(void)
 	}
 
 	XftDrawDestroy (draw);
-	Cursor(SHOW);
+	TextCursor(SHOW);
 	ShowText();
 }
 
@@ -600,7 +682,7 @@ bool Panel::OnKeyPress(XEvent& event)
 			break;
 	}
 
-	Cursor(HIDE);
+	TextCursor(HIDE);
 	switch(keysym){
 		case XK_Delete:
 		case XK_BackSpace:
@@ -700,7 +782,7 @@ bool Panel::OnKeyPress(XEvent& event)
 	}
 
 	XftDrawDestroy (draw);
-	Cursor(SHOW);
+	TextCursor(SHOW);
 	return true;
 }
 
@@ -916,22 +998,29 @@ Rectangle Panel::GetPrimaryViewport()
 	fallback.width = DisplayWidth(Dpy, Scr);
 	fallback.height = DisplayHeight(Dpy, Scr);
 
-	primary = XRRGetOutputPrimary(Dpy, Win);
-	if (!primary) {
-	    return fallback;
-	}
 	resources = XRRGetScreenResources(Dpy, Win);
 	if (!resources)
+	{
+		cerr << "XRRGetScreenResources failed\n";
 	    return fallback;
+	}
+
+	primary = XRRGetOutputPrimary(Dpy, Win);
+	if (!primary) {
+	    // No "primary" defined (by the WM, usually) but could still have
+	    // multiple monitors or setups, so default to the first output.
+	    primary = resources->outputs[0];
+	}
 
 	primary_info = XRRGetOutputInfo(Dpy, resources, primary);
 	if (!primary_info) {
+		cerr << "XRRGetOutputInfo failed\n";
 	    XRRFreeScreenResources(resources);
 	    return fallback;
 	}
 
     // Fixes bug with multiple monitors.  Just pick first monitor if 
-    // XRRGetOutputInfo gives returns bad into for crtc.
+    // XRRGetOutputInfo gives returns bad value for crtc.
     if (primary_info->crtc < 1) {
         if (primary_info->ncrtc > 0) {
            crtc = primary_info->crtcs[0];
@@ -946,6 +1035,7 @@ Rectangle Panel::GetPrimaryViewport()
 	crtc_info = XRRGetCrtcInfo(Dpy, resources, crtc);
 
 	if (!crtc_info) {
+		cerr << "XRRGetCrtcInfo failed\n";
 	    XRRFreeOutputInfo(primary_info);
 	    XRRFreeScreenResources(resources);
 	    return fallback;

@@ -327,7 +327,8 @@ void App::Run()
 		}
 	}
 
-	if (!testing) {
+	if (!testing)
+	{
 		/* Create lock file */
 		LoginApp->GetLock();
 
@@ -386,9 +387,6 @@ void App::Run()
 	Scr = DefaultScreen(Dpy);
 	Root = RootWindow(Dpy, Scr);
 
-	// Intern _XROOTPMAP_ID property
-	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
-
 	/* for tests we use a standard window */
 	if (testing)
 	{
@@ -402,10 +400,10 @@ void App::Run()
 		blankScreen();
 	}
 
-	HideCursor();
-
 	/* Create panel */
 	LoginPanel = new Panel(Dpy, Scr, Root, cfg, themedir, Panel::Mode_DM);
+	LoginPanel->HideCursor();
+
 	bool firstloop = true; /* 1st time panel is shown (for automatic username) */
 	bool focuspass = cfg->getOption("focus_password")=="yes";
 	bool autologin = cfg->getOption("auto_login")=="yes";
@@ -450,7 +448,7 @@ void App::Run()
 		if (panelclosed)
 		{
 			/* Init root */
-			setBackground(themedir);
+			LoginPanel->setBackground(themedir);
 
 			/* Close all clients */
 			if (!testing)
@@ -616,24 +614,6 @@ int App::GetServerPID()
 	return ServerPID;
 }
 
-/* Hide the cursor */
-void App::HideCursor()
-{
-	if (cfg->getOption("hidecursor") == "true")
-	{
-		XColor			black;
-		char			cursordata[1];
-		Pixmap			cursorpixmap;
-		Cursor			cursor;
-		cursordata[0]=0;
-		cursorpixmap=XCreateBitmapFromData(Dpy,Root,cursordata,1,1);
-		black.red=0;
-		black.green=0;
-		black.blue=0;
-		cursor=XCreatePixmapCursor(Dpy,cursorpixmap,cursorpixmap,&black,&black,0,0);
-		XDefineCursor(Dpy,Root,cursor);
-	}
-}
 
 void App::Login()
 {
@@ -846,7 +826,7 @@ void App::Login()
 	if (killpg(pid, SIGTERM))
 		killpg(pid, SIGKILL);
 
-	HideCursor();
+	LoginPanel->HideCursor();
 
 #ifndef XNEST_DEBUG
 	RestartServer();	/// @bug recursive call!
@@ -1279,65 +1259,6 @@ void App::blankScreen()
 				   XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
 	XFlush(Dpy);
 	XFreeGC(Dpy, gc);
-}
-
-
-/**
- * Load the background image, adjust it according to the style setting, and
- * set it as the window background for the root window.
- * @bug much of this is duplicated in Panel::Panel to turn the panel PNG into
- *      a PixMap
- */
-void App::setBackground(const string& themedir)
-{
-	string filename;
-	filename = themedir + "/background.png";
-	Image *image = new Image;
-	bool loaded = image->Read(filename.c_str());
-	if (!loaded)
-	{ /* try jpeg if png failed */
-		filename = themedir + "/background.jpg";
-		loaded = image->Read(filename.c_str());
-	}
-
-	if (loaded)
-	{
-		string bgstyle = cfg->getOption("background_style");
-		if (bgstyle == "stretch")
-		{
-			image->Resize(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		}
-		else if (bgstyle == "tile")
-		{
-			image->Tile(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		}
-		else if (bgstyle == "center")
-		{
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			image->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						hexvalue.c_str());
-		}
-		else
-		{ /* plain color or error */
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			image->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						hexvalue.c_str());
-		}
-		Pixmap p = image->createPixmap(Dpy, Scr, Root);
-		XSetWindowBackgroundPixmap(Dpy, Root, p);
-		XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
-					PropModeReplace, (unsigned char *)&p, 1);
-	}
-	XClearWindow(Dpy, Root);
-
-	XFlush(Dpy);
-	delete image;
 }
 
 

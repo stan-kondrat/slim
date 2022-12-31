@@ -90,9 +90,13 @@ public:
 	const std::string& GetPasswd(void) const;
 	void SwitchSession();
 
+	Atom BackgroundPixmapId;	// from XInternAtom -- does it need to be a member var?
+	void setBackground(const std::string &themedir);
+	void HideCursor();
+
 private:
 	Panel();
-	void Cursor(int visible);
+	void TextCursor(int visible);
 	unsigned long GetColor(const char *colorname);
 	void OnExpose(void);
 	void EraseLastChar(std::string &formerString);

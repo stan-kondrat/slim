@@ -13,7 +13,6 @@
 #define _APP_H_
 
 #include <X11/Xlib.h>
-#include <X11/Xatom.h>
 #include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -59,7 +58,6 @@ private:
 	void ReadConfig();
 	void OpenLog();
 	void CloseLog();
-	void HideCursor();
 	void CreateServerAuth();
 	char *StrConcat(const char *str1, const char *str2);
 	void UpdatePid();
@@ -96,9 +94,6 @@ private:
 	Cfg *cfg;		///< Collection of options from the configuration file
 
 	void blankScreen();
-
-	Atom BackgroundPixmapId;	// from XInternAtom -- does it need to be a member var?
-	void setBackground(const std::string &themedir);
 
 	bool firstlogin;	///< Whether to exhibit first login behaviour, or repeat
 	bool daemonmode;	///< Are we running as a daemon?

@@ -40,8 +40,6 @@
 
 using namespace std;
 
-void setBackground(const string& themedir);
-void HideCursor();
 bool AuthenticateUser();
 static int ConvCallback(int num_msgs, const struct pam_message **msg,
 						struct pam_response **resp, void *appdata_ptr);
@@ -173,11 +171,11 @@ int main(int argc, char **argv)
 	}
 	XSelectInput(dpy, win, ExposureMask | KeyPressMask);
 
+	loginPanel = new Panel(dpy, scr, win, cfg, themedir, Panel::Mode_Lock);
+
 	// This hides the cursor if the user has that option enabled in their
 	// configuration
-	HideCursor();
-
-	loginPanel = new Panel(dpy, scr, win, cfg, themedir, Panel::Mode_Lock);
+	loginPanel->HideCursor();
 
 	int ret = pam_start(APPNAME, loginPanel->GetName().c_str(), &conv, &pam_handle);
 	// If we can't start PAM, just exit because slimlock won't work right
@@ -257,24 +255,6 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-void HideCursor()
-{
-	if (cfg->getOption("hidecursor") == "true") {
-		XColor black;
-		char cursordata[1];
-		Pixmap cursorpixmap;
-		Cursor cursor;
-		cursordata[0] = 0;
-		cursorpixmap = XCreateBitmapFromData(dpy, win, cursordata, 1, 1);
-		black.red = 0;
-		black.green = 0;
-		black.blue = 0;
-		cursor = XCreatePixmapCursor(dpy, cursorpixmap, cursorpixmap,
-									 &black, &black, 0, 0);
-		XFreePixmap(dpy, cursorpixmap);
-		XDefineCursor(dpy, win, cursor);
-	}
-}
 
 static int ConvCallback(int num_msgs, const struct pam_message **msg,
 						struct pam_response **resp, void *appdata_ptr)
