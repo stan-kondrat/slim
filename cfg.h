@@ -30,7 +30,7 @@ public:
 	~Cfg();
 
 	bool readConf(std::string configfile);
-	std::string parseOption(std::string line, std::string option);
+	bool parseOption ( std::string line );
 	const std::string& getError() const;
 	std::string& getOption(std::string option);
 	int getIntOption(std::string option);

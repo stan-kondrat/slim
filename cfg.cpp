@@ -2,7 +2,7 @@
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
  *  Copyright (C) 2012-13 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
- *  Copyright (C) 2022 Rob Pearce <slim@flitspace.org.uk>
+ *  Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,6 +26,10 @@ using namespace std;
 
 typedef pair<string,string> option;
 
+/**
+ * Constructor: creates the Cfg object and populates the available options
+ * with default values.
+ */
 Cfg::Cfg()
 	: currentSession(-1)
 {
@@ -145,9 +149,11 @@ Cfg::~Cfg()
 	options.clear();
 }
 
-/*
- * Creates the Cfg object and parses
- * known options from the given configfile / themefile
+/**
+ * Parses known options from the given configfile / themefile
+ * 
+ * @param	configfile	Path to configuration or theme
+ * @return				true on sucess, false if file not found
  */
 bool Cfg::readConf(string configfile)
 {
@@ -157,32 +163,35 @@ bool Cfg::readConf(string configfile)
 	map<string,string>::iterator it;
 	ifstream cfgfile(fn.c_str());
 
-	if (!cfgfile) {
+	if (!cfgfile)
+	{
 		error = "Cannot read configuration file: " + configfile;
 		return false;
 	}
-	while (getline(cfgfile, line)) {
-		if ((pos = line.find('\\')) != string::npos) {
-			if (line.length() == pos + 1) {
-				line.replace(pos, 1, " ");
-				next = next + line;
-				continue;
-			} else
-				line.replace(pos, line.length() - pos, " ");
+	while (getline(cfgfile, line))
+	{
+		// New parser to fix ticket #4
+		pos = line.length();
+		if ( ( pos > 0 ) && ( line[pos-1] == '\\' ) )
+		{
+			line.replace ( pos-1, 1, " " );
+			next = next + line;
+			continue;
 		}
 
-		if (!next.empty()) {
+		if ( !next.empty() )
+		{
 			line = next + line;
 			next = "";
 		}
-		it = options.begin();
-		while (it != options.end()) {
-			op = it->first;
-			n = line.find(op);
-			if (n == 0)
-				options[op] = parseOption(line, op);
-			++it;
-		}
+
+		// Ignore blank lines and comment lines
+		if ( line.empty() || line[0] == '#' )
+			continue;
+
+		// Now parse and assign
+		if ( !parseOption ( line ) )
+			cerr << error << '\n';	// not a fatal error
 	}
 	cfgfile.close();
 
@@ -191,11 +200,41 @@ bool Cfg::readConf(string configfile)
 	return true;
 }
 
-/* Returns the option value, trimmed */
-string Cfg::parseOption(string line, string option )
+/**
+ *  Sets an option value from a line. Returns true on success.
+ */
+bool Cfg::parseOption ( string line )
 {
-	return Trim( line.substr(option.size(), line.size() - option.size()));
+	size_t pos = 0;
+	const string delims = " \t";
+	string name, value;
+
+	// First split the line into a name/value pair
+	pos = line.find_first_of ( delims );
+	if ( pos == string::npos )
+	{
+		error = "Badly formed line: " + line;
+		return false;
+	}
+	name = line.substr ( 0, pos );
+	value = Trim ( line.substr ( pos ) );
+	if ( value.empty() )
+	{
+		error = "Badly formed line: " + line;
+		return false;
+	}
+
+	// Look to see if it's a known option
+	if ( options.find ( name ) == options.end() )
+	{
+		error = "Unknown option name: " + name;
+		return false;
+	}
+	// finally assign it
+	options[name] = value;
+	return true;
 }
+
 
 const string& Cfg::getError() const
 {
@@ -317,7 +356,8 @@ void Cfg::fillSessionList()
 
 	sessions.clear();
 
-	if( !strSessionDir.empty() ) {
+	if ( !strSessionDir.empty() )
+	{
 		DIR *pDir = opendir(strSessionDir.c_str());
 
 		if (pDir != NULL) {
@@ -364,21 +404,27 @@ void Cfg::fillSessionList()
 		}
 	}
 
-	if (sessions.empty()){
-		if (strSessionList.empty()) {
+	if (sessions.empty())
+	{
+		if (strSessionList.empty())
+		{
 			pair<string,string> session("","");
 			sessions.push_back(session);
-		} else {
+		}
+		else
+		{
 			// iterate through the split of the session list
 			vector<string> sessit;
 			split(sessit,strSessionList,',',false);
-			for (vector<string>::iterator it = sessit.begin(); it != sessit.end(); ++it) {
+			for (vector<string>::iterator it = sessit.begin(); it != sessit.end(); ++it)
+			{
 				pair<string,string> session(*it,*it);
 				sessions.push_back(session);
 			}
 		}
 	}
 }
+
 
 pair<string,string> Cfg::nextSession()
 {
