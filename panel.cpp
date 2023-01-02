@@ -3,7 +3,7 @@
  *  Copyright (C) 1997, 1998 Per Liden
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
- *  Copyright (C) 2022 Rob Pearce <slim@flitspace.org.uk>
+ *  Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -183,14 +183,13 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		/* Merge image into background without crop, so that PanelPixmap is
 		 * the whole screen (background image with panel drawn on it) */
 		image->Merge_non_crop(bg, X, Y);
-		PanelPixmap = image->createPixmap(Dpy, Scr, Win);	// Win == Root
 	} else {
 		/* Merge image with cropped background, so that PanelPixmap is the
 		 * panel with the relevant part of the X root image included instead
 		 * of the alpha channel */
 		image->Merge(bg, X, Y);
-		PanelPixmap = image->createPixmap(Dpy, Scr, Root);
 	}
+	PanelPixmap = image->createPixmap(Dpy, Scr, Root);
 	delete bg;
 
 	/* Read (and substitute vars in) the welcome message */
@@ -418,12 +417,9 @@ void Panel::Message(const string& text)
 	XGlyphInfo extents;
 	XftDraw *draw;
 
-	if (mode == Mode_Lock)
-		draw = XftDrawCreate(Dpy, Win,
-			DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
-	else
-		draw = XftDrawCreate(Dpy, Root,
-			DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
+	// The message positions are screen-relative, not panel-relative
+	draw = XftDrawCreate(Dpy, Root,
+		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
 	XftTextExtents8(Dpy, msgfont,
 		reinterpret_cast<const XftChar8*>(text.c_str()),
@@ -450,10 +446,7 @@ unsigned long Panel::GetColor(const char* colorname)
 	XColor color;
 	XWindowAttributes attributes;
 
-	if (mode == Mode_Lock)
-		XGetWindowAttributes(Dpy, Win, &attributes);
-	else
-		XGetWindowAttributes(Dpy, Root, &attributes);
+	XGetWindowAttributes(Dpy, Root, &attributes);
 
 	color.pixel = 0;
 
@@ -471,24 +464,21 @@ void Panel::TextCursor(int visible)
 	int xx = 0, yy = 0, y2 = 0, cheight = 0;
 	const char* txth = "Wj"; /* used to get cursor height */
 
-	if (mode == Mode_Lock) {
+	// The constructor and other conditionals guarantee that
+	// if (mode == Mode_Lock)	field = Get_Passwd;
+
+	switch(field) {
+		case Get_Passwd:
 			text = HiddenPasswdBuffer.c_str();
 			xx = input_pass_x;
 			yy = input_pass_y;
-	} else {
-		switch(field) {
-			case Get_Passwd:
-				text = HiddenPasswdBuffer.c_str();
-				xx = input_pass_x;
-				yy = input_pass_y;
-				break;
+			break;
 
-			case Get_Name:
-				text = NameBuffer.c_str();
-				xx = input_name_x;
-				yy = input_name_y;
-				break;
-		}
+		case Get_Name:
+			text = NameBuffer.c_str();
+			xx = input_name_x;
+			yy = input_name_y;
+			break;
 	}
 
 	XGlyphInfo extents;
@@ -673,14 +663,10 @@ bool Panel::OnKeyPress(XEvent& event)
 				else if (NameBuffer==EXIT_STR)
 					action = Exit;
 				else
-				{
-					if (mode == Mode_DM)
-						action = Login;
-					else
-						action = Lock;
-				}
+					action = Login;
 			}
 			return false;
+
 		default:
 			break;
 	}
@@ -880,7 +866,7 @@ string Panel::getSession()
 }
 
 
-/* choose next available session type. Inappropriate in lock mode */
+/* choose next available session type. Not used in lock mode */
 void Panel::SwitchSession()
 {
 	pair<string,string> ses = cfg->nextSession();
@@ -892,7 +878,7 @@ void Panel::SwitchSession()
  }
 
 
-/* Display session type on the screen. Not suitable in lock mode */
+/* Display session type on the screen. Not used in lock mode */
 void Panel::ShowSession()
 {
 	string msg_x, msg_y;
@@ -971,10 +957,7 @@ void Panel::ResetPasswd(void)
 void Panel::SetName(const string& name)
 {
 	NameBuffer=name;
-	if (mode == Mode_DM)
-		action = Login;
-	else
-		action = Lock;
+	action = Login;
 }
 
 const string& Panel::GetName(void) const
