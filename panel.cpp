@@ -363,10 +363,10 @@ void Panel::WrongPassword(int timeout)
 #endif
 	message = cfg->getOption("passwd_feedback_msg");
 
-	XGetWindowAttributes(Dpy, Win, &attributes);
+	XGetWindowAttributes(Dpy, Root, &attributes);
 
-	XftDraw *draw = XftDrawCreate(Dpy, Win,
-		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
+	XftDraw *draw = XftDrawCreate ( Dpy, Root,
+		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr) );
 	XftTextExtents8(Dpy, msgfont, reinterpret_cast<const XftChar8*>(message.c_str()),
 		message.length(), &MsgExtents);
 
@@ -548,7 +548,7 @@ void Panel::EventHandler(const Panel::FieldType& curfield)
 						MsgExtents.y, MsgExtents.width+1,
 						MsgExtents.height+2));
 				else
-					XClearArea(Dpy, Win, MsgExtents.x, MsgExtents.y,
+					XClearArea(Dpy, Root, MsgExtents.x, MsgExtents.y,
 						MsgExtents.width+1, MsgExtents.height+2, false);
 				MsgExtents.width = 0;
 			}
