@@ -48,7 +48,6 @@ Cfg::Cfg()
 	options.insert(option("sessionstop_cmd",""));
 	options.insert(option("console_cmd","/usr/bin/xterm -C -fg white -bg black +sb -g %dx%d+%d+%d -fn %dx%d -T ""Console login"" -e /bin/sh -c ""/bin/cat /etc/issue; exec /bin/login"""));
 	options.insert(option("screenshot_cmd","import -window root /slim.png"));
-	options.insert(option("welcome_msg","Welcome to %host"));
 	options.insert(option("session_msg","Session:"));
 	options.insert(option("default_user",""));
 	options.insert(option("focus_password","no"));
@@ -64,21 +63,25 @@ Cfg::Cfg()
 	options.insert(option("hidecursor","false"));
 
 	/* Theme stuff */
-	options.insert(option("input_panel_x","50%"));
+	options.insert(option("background_style","stretch"));
+	options.insert(option("background_color","#CCCCCC"));
+
+	options.insert(option("input_panel_x","50%"));	/* Panel position on screen */
 	options.insert(option("input_panel_y","40%"));
-	options.insert(option("input_name_x","200"));
-	options.insert(option("input_name_y","154"));
-	options.insert(option("input_pass_x","-1")); /* default is single inputbox */
-	options.insert(option("input_pass_y","-1"));
 	options.insert(option("input_font","Verdana:size=11"));
 	options.insert(option("input_color", "#000000"));
-	options.insert(option("input_cursor_height","20"));
-	options.insert(option("input_maxlength_name","20"));
-	options.insert(option("input_maxlength_passwd","20"));
 	options.insert(option("input_shadow_xoffset", "0"));
 	options.insert(option("input_shadow_yoffset", "0"));
 	options.insert(option("input_shadow_color","#FFFFFF"));
+	options.insert(option("input_name_x","200"));	/* relative to panel */
+	options.insert(option("input_name_y","154"));
+	options.insert(option("input_pass_x","-1")); /* default is single inputbox */
+	options.insert(option("input_pass_y","-1"));
+	options.insert(option("input_cursor_height","20"));
+	options.insert(option("input_maxlength_name","20"));
+	options.insert(option("input_maxlength_passwd","20"));
 
+	options.insert(option("welcome_msg","Welcome to %host"));
 	options.insert(option("welcome_font","Verdana:size=14"));
 	options.insert(option("welcome_color","#FFFFFF"));
 	options.insert(option("welcome_x","-1"));
@@ -87,38 +90,29 @@ Cfg::Cfg()
 	options.insert(option("welcome_shadow_yoffset", "0"));
 	options.insert(option("welcome_shadow_color","#FFFFFF"));
 
-	options.insert(option("intro_msg",""));
-	options.insert(option("intro_font","Verdana:size=14"));
-	options.insert(option("intro_color","#FFFFFF"));
-	options.insert(option("intro_x","-1"));
-	options.insert(option("intro_y","-1"));
-
-	options.insert(option("background_style","stretch"));
-	options.insert(option("background_color","#CCCCCC"));
-
+	options.insert(option("username_msg","Please enter your username"));
 	options.insert(option("username_font","Verdana:size=12"));
 	options.insert(option("username_color","#FFFFFF"));
 	options.insert(option("username_x","-1"));
 	options.insert(option("username_y","-1"));
-	options.insert(option("username_msg","Please enter your username"));
 	options.insert(option("username_shadow_xoffset", "0"));
 	options.insert(option("username_shadow_yoffset", "0"));
 	options.insert(option("username_shadow_color","#FFFFFF"));
 
+	options.insert(option("password_msg","Please enter your password"));
 	options.insert(option("password_x","-1"));
 	options.insert(option("password_y","-1"));
-	options.insert(option("password_msg","Please enter your password"));
 
-	options.insert(option("msg_color","#FFFFFF"));
 	options.insert(option("msg_font","Verdana:size=16:bold"));
+	options.insert(option("msg_color","#FFFFFF"));
 	options.insert(option("msg_x","40"));
 	options.insert(option("msg_y","40"));
 	options.insert(option("msg_shadow_xoffset", "0"));
 	options.insert(option("msg_shadow_yoffset", "0"));
 	options.insert(option("msg_shadow_color","#FFFFFF"));
 
-	options.insert(option("session_color","#FFFFFF"));
 	options.insert(option("session_font","Verdana:size=16:bold"));
+	options.insert(option("session_color","#FFFFFF"));
 	options.insert(option("session_x","50%"));
 	options.insert(option("session_y","90%"));
 	options.insert(option("session_shadow_xoffset", "0"));
@@ -128,10 +122,11 @@ Cfg::Cfg()
 	// What to do if the authorisation fails
 	options.insert(option("keep_user_on_fail", "0"));
 	options.insert(option("wrong_passwd_timeout", "2"));
-	options.insert(option("passwd_feedback_x", "-1"));
-	options.insert(option("passwd_feedback_y", "-1"));
 	options.insert(option("passwd_feedback_msg", "Authentication failed"));
 	options.insert(option("passwd_feedback_capslock", "Authentication failed (CapsLock is on)"));
+	options.insert(option("passwd_feedback_x", "-1"));	/* no feedback by default */
+	options.insert(option("passwd_feedback_y", "-1"));
+	options.insert(option("bell", "0"));
 
 	// slimlock-specific options
 	options.insert(option("dpms_standby_timeout", "60"));
@@ -139,7 +134,6 @@ Cfg::Cfg()
 	options.insert(option("show_username", "1"));
 	options.insert(option("show_welcome_msg", "0"));
 	options.insert(option("tty_lock", "1"));
-	options.insert(option("bell", "1"));
 
 	error = "";
 }
@@ -311,7 +305,19 @@ int Cfg::getIntOption(std::string option)
 	return string2int(options[option].c_str());
 }
 
-/* Get absolute position */
+
+/**
+ * Get absolute position
+ * 
+ * Converts a config position string into absolute coordinates. If the string 
+ * is a plain number, this is just an atoi but if there is a percentage sign 
+ * then the value is converted using the size of the canvas and the object.
+ * 
+ * @param	position	Configured position as a string
+ * @param	max			Size of canvas in the relevant axis
+ * @param	width		Size of the object being placed
+ * @return				Absolute coordinate to achieve placement
+ */
 int Cfg::absolutepos(const string& position, int max, int width)
 {
 	int n = position.find("%");

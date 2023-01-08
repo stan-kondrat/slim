@@ -74,7 +74,6 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 
 	font = XftFontOpenName(Dpy, Scr, cfg->getOption("input_font").c_str());
 	welcomefont = XftFontOpenName(Dpy, Scr, cfg->getOption("welcome_font").c_str());
-	introfont = XftFontOpenName(Dpy, Scr, cfg->getOption("intro_font").c_str());
 	enterfont = XftFontOpenName(Dpy, Scr, cfg->getOption("username_font").c_str());
 	msgfont = XftFontOpenName(Dpy, Scr, cfg->getOption("msg_font").c_str());
 
@@ -89,7 +88,6 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("username_shadow_color").c_str(), &entershadowcolor);
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("msg_color").c_str(), &msgcolor);
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("msg_shadow_color").c_str(), &msgshadowcolor);
-	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("intro_color").c_str(), &introcolor);
 	XftColorAllocName(Dpy, visual, colormap,
 					  cfg->getOption("session_color").c_str(), &sessioncolor);
 	XftColorAllocName(Dpy, visual, colormap,
@@ -194,7 +192,6 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
-	intro_message = cfg->getOption("intro_msg");
 
 	if (mode == Mode_Lock) {
 		SetName(getenv("USER"));
@@ -217,14 +214,12 @@ Panel::~Panel()
 	XftColorFree(Dpy, visual, colormap, &entershadowcolor);
 	XftColorFree(Dpy, visual, colormap, &msgcolor);
 	XftColorFree(Dpy, visual, colormap, &msgshadowcolor);
-	XftColorFree(Dpy, visual, colormap, &introcolor);
 	XftColorFree(Dpy, visual, colormap, &sessioncolor);
 	XftColorFree(Dpy, visual, colormap, &sessionshadowcolor);
 
 	XFreeGC(Dpy, TextGC);
 	XftFontClose(Dpy, font);
 	XftFontClose(Dpy, msgfont);
-	XftFontClose(Dpy, introfont);
 	XftFontClose(Dpy, welcomefont);
 	XftFontClose(Dpy, enterfont);
 

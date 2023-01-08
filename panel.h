@@ -129,8 +129,6 @@ private:
 	XftColor msgcolor;
 	XftColor msgshadowcolor;
 	XftFont *msgfont;
-	XftColor introcolor;
-	XftFont *introfont;
 	XftFont *welcomefont;
 	XftColor welcomecolor;
 	XftFont *sessionfont;
@@ -167,8 +165,6 @@ private:
 	int welcome_shadow_yoffset;
 	int session_shadow_xoffset;
 	int session_shadow_yoffset;
-	int intro_x;
-	int intro_y;
 	int username_x;
 	int username_y;
 	int username_shadow_xoffset;
@@ -176,7 +172,6 @@ private:
 	int password_x;
 	int password_y;
 	std::string welcome_message;
-	std::string intro_message;
 
 	/* Pixmap data */
 	Pixmap PanelPixmap;
