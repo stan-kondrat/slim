@@ -31,7 +31,8 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Root(root),
 	  session_name(""), session_exec("")
 {
-	if (mode == Mode_Lock) {
+	if (mode == Mode_Lock)
+	{
 		Win = root;
 		viewport = GetPrimaryViewport();
 	}
@@ -240,12 +241,12 @@ void Panel::setBackground(const string& themedir)
 {
 	string filename;
 	filename = themedir + "/background.png";
-	Image *image = new Image;
-	bool loaded = image->Read(filename.c_str());
+	Image *bgImg = new Image;
+	bool loaded = bgImg->Read(filename.c_str());
 	if (!loaded)
 	{ /* try jpeg if png failed */
 		filename = themedir + "/background.jpg";
-		loaded = image->Read(filename.c_str());
+		loaded = bgImg->Read(filename.c_str());
 	}
 
 	if (loaded)
@@ -253,17 +254,17 @@ void Panel::setBackground(const string& themedir)
 		string bgstyle = cfg->getOption("background_style");
 		if (bgstyle == "stretch")
 		{
-			image->Resize(viewport.width, viewport.height);
+			bgImg->Resize(viewport.width, viewport.height);
 		}
 		else if (bgstyle == "tile")
 		{
-			image->Tile(viewport.width, viewport.height);
+			bgImg->Tile(viewport.width, viewport.height);
 		}
 		else if (bgstyle == "center")
 		{
 			string hexvalue = cfg->getOption("background_color");
 			hexvalue = hexvalue.substr(1,6);
-			image->Center(viewport.width,
+			bgImg->Center(viewport.width,
 				viewport.height,
 				hexvalue.c_str());
 		}
@@ -271,11 +272,11 @@ void Panel::setBackground(const string& themedir)
 		{ /* plain color or error */
 			string hexvalue = cfg->getOption("background_color");
 			hexvalue = hexvalue.substr(1,6);
-			image->Center(viewport.width,
+			bgImg->Center(viewport.width,
 				viewport.height,
 				hexvalue.c_str());
 		}
-		Pixmap p = image->createPixmap(Dpy, Scr, Root);
+		Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
 		XSetWindowBackgroundPixmap(Dpy, Root, p);
 		XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
 					PropModeReplace, (unsigned char *)&p, 1);
@@ -283,7 +284,7 @@ void Panel::setBackground(const string& themedir)
 	XClearWindow(Dpy, Root);
 
 	XFlush(Dpy);
-	delete image;
+	delete bgImg;
 }
 
 
@@ -346,7 +347,7 @@ void Panel::WrongPassword(int timeout)
 	string message;
 	XWindowAttributes attributes;
 
-	if ( mode == Mode_DM )
+	if ( mode != Mode_Lock )
 	{
 		XClearWindow(Dpy, Root);
 	}
@@ -388,7 +389,7 @@ void Panel::WrongPassword(int timeout)
 		sleep(timeout);
 	}
 	ResetPasswd();
-	if ( mode == Mode_DM )
+	if ( mode != Mode_Lock )
 	{
 		if ( cfg->getIntOption("keep_user_on_fail") == 0 )
 		{
@@ -511,7 +512,7 @@ void Panel::EventHandler(const Panel::FieldType& curfield)
 	field = curfield;
 	bool loop = true;
 
-	if ( (mode == Mode_DM) && ( MsgExtents.width == 0 ) )
+	if ( (mode != Mode_Lock) && ( MsgExtents.width == 0 ) )
 		OnExpose();
 
 	struct pollfd x11_pfd = {0};
@@ -827,7 +828,7 @@ void Panel::ShowText()
 		}
 	}
 
-	if ((!singleInputMode|| field == Get_Name) && mode == Mode_DM) {
+	if ((!singleInputMode|| field == Get_Name) && mode != Mode_Lock ) {
 		msg = cfg->getOption("username_msg");
 		XftTextExtents8(Dpy, enterfont, (XftChar8*)msg.c_str(),
 						strlen(msg.c_str()), &extents);
