@@ -248,34 +248,39 @@ void Image::getPixel(double x, double y, unsigned char *pixel, unsigned char *al
 	}
 }
 
-/* Merge the image with a background, taking care of the
- * image Alpha transparency. (background alpha is ignored).
- * The images is merged on position (x, y) on the
- * background, the background must contain the image.
+/**
+ * Merge the image with a background, taking care of the image Alpha
+ * transparency. (background alpha is ignored).
+ *
+ * The image is merged with the section of background at position (x, y).
+ * The background must fully contain the image.
+ * If the image does not have any transparency (no alpha data) then this
+ * is effectively a no-operation.
+ * @bug should not do pointless work on non-transparent no-op
+ * @bug use of double to calculate the new value of a U8
  */
-void Image::Merge(Image* background, const int x, const int y)
+void Image::Merge ( const Image* background, const int x, const int y )
 {
 
 	if (x + width > background->Width()|| y + height > background->Height())
 		return;
-
-	if (background->Width()*background->Height() != width*height)
-		background->Crop(x, y, width, height);
 
 	double tmp;
 	unsigned char *new_rgb = (unsigned char *) malloc(3 * width * height);
 	memset(new_rgb, 0, 3 * width * height);
 	const unsigned char *bg_rgb = background->getRGBData();
 
-	int ipos = 0;
+	int opos = 0;
 	if (png_alpha != NULL){
 		for (int j = 0; j < height; j++) {
+			int ipos = (y+j) * background->Width() + x;
 			for (int i = 0; i < width; i++) {
 				for (int k = 0; k < 3; k++) {
-					tmp = rgb_data[3*ipos + k]*png_alpha[ipos]/255.0
-							+ bg_rgb[3*ipos + k]*(1-png_alpha[ipos]/255.0);
-					new_rgb[3*ipos + k] = static_cast<unsigned char> (tmp);
+					tmp = rgb_data[3*opos + k]*png_alpha[opos]/255.0
+							+ bg_rgb[3*ipos + k]*(1-png_alpha[opos]/255.0);
+					new_rgb[3*opos + k] = static_cast<unsigned char> (tmp);
 				}
+				opos++;
 				ipos++;
 			}
 		}
@@ -283,10 +288,10 @@ void Image::Merge(Image* background, const int x, const int y)
 		for (int j = 0; j < height; j++) {
 			for (int i = 0; i < width; i++) {
 				for (int k = 0; k < 3; k++) {
-					tmp = rgb_data[3*ipos + k];
-					new_rgb[3*ipos + k] = static_cast<unsigned char> (tmp);
+					tmp = rgb_data[3*opos + k];
+					new_rgb[3*opos + k] = static_cast<unsigned char> (tmp);
 				}
-				ipos++;
+				opos++;
 			}
 		}
 	}
