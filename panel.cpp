@@ -124,14 +124,14 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		}
 	}
 
-	Image* bg = new Image();
+	bgImg = new Image();
 	string bgstyle = cfg->getOption("background_style");
 	if (bgstyle != "color") {
 		panelpng = themedir +"/background.png";
-		loaded = bg->Read(panelpng.c_str());
+		loaded = bgImg->Read(panelpng.c_str());
 		if (!loaded) { /* try jpeg if png failed */
 			panelpng = themedir + "/background.jpg";
-			loaded = bg->Read(panelpng.c_str());
+			loaded = bgImg->Read(panelpng.c_str());
 			if (!loaded){
 				logStream << APPNAME
 					 << ": could not load background image for theme '"
@@ -143,19 +143,19 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	}
 
 	if (bgstyle == "stretch")
-		bg->Resize(viewport.width, viewport.height);
+		bgImg->Resize(viewport.width, viewport.height);
 	else if (bgstyle == "tile")
-		bg->Tile(viewport.width, viewport.height);
+		bgImg->Tile(viewport.width, viewport.height);
 	else if (bgstyle == "center") {
 		string hexvalue = cfg->getOption("background_color");
 		hexvalue = hexvalue.substr(1,6);
-		bg->Center(viewport.width,
+		bgImg->Center(viewport.width,
 			viewport.height,
 			hexvalue.c_str());
 	} else { // plain color or error
 		string hexvalue = cfg->getOption("background_color");
 		hexvalue = hexvalue.substr(1,6);
-		bg->Center(viewport.width,
+		bgImg->Center(viewport.width,
 			viewport.height,
 			hexvalue.c_str());
 	}
@@ -181,15 +181,14 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	if (mode == Mode_Lock) {
 		/* Merge image into background without crop, so that PanelPixmap is
 		 * the whole screen (background image with panel drawn on it) */
-		image->Merge_non_crop(bg, X, Y);
+		image->Merge_non_crop(bgImg, X, Y);
 	} else {
 		/* Merge image with cropped background, so that PanelPixmap is the
 		 * panel with the relevant part of the X root image included instead
 		 * of the alpha channel */
-		image->Merge(bg, X, Y);
+		image->Merge(bgImg, X, Y);
 	}
 	PanelPixmap = image->createPixmap(Dpy, Scr, Root);
-	delete bg;
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
@@ -227,64 +226,25 @@ Panel::~Panel()
 	if (mode == Mode_Lock)
 		XFreeGC(Dpy, WinGC);
 
+	delete bgImg;
 	delete image;
 }
 
 
 /**
- * Load the background image, adjust it according to the style setting, and
- * set it as the window background for the root window.
- * @bug much of this is duplicated in Panel::Panel to turn the panel PNG into
- *      a PixMap
+ * Set the (previously loaded and adjusted) background image as the window
+ * background for the root window.
  */
 void Panel::setBackground(const string& themedir)
 {
-	string filename;
-	filename = themedir + "/background.png";
-	Image *bgImg = new Image;
-	bool loaded = bgImg->Read(filename.c_str());
-	if (!loaded)
-	{ /* try jpeg if png failed */
-		filename = themedir + "/background.jpg";
-		loaded = bgImg->Read(filename.c_str());
-	}
+	Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
+	XSetWindowBackgroundPixmap(Dpy, Root, p);
+	XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
+				PropModeReplace, (unsigned char *)&p, 1);
 
-	if (loaded)
-	{
-		string bgstyle = cfg->getOption("background_style");
-		if (bgstyle == "stretch")
-		{
-			bgImg->Resize(viewport.width, viewport.height);
-		}
-		else if (bgstyle == "tile")
-		{
-			bgImg->Tile(viewport.width, viewport.height);
-		}
-		else if (bgstyle == "center")
-		{
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bgImg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		}
-		else
-		{ /* plain color or error */
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bgImg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		}
-		Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
-		XSetWindowBackgroundPixmap(Dpy, Root, p);
-		XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
-					PropModeReplace, (unsigned char *)&p, 1);
-	}
 	XClearWindow(Dpy, Root);
 
 	XFlush(Dpy);
-	delete bgImg;
 }
 
 

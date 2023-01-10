@@ -140,8 +140,7 @@ private:
 	XftColor entershadowcolor;
 	ActionType action;
 	FieldType field;
-	//Pixmap   background;
-	XGlyphInfo MsgExtents;
+	XGlyphInfo MsgExtents;	///@todo should this be a Rectangle?
 	
 	/* Username/Password */
 	std::string NameBuffer;
@@ -177,6 +176,7 @@ private:
 	Pixmap PanelPixmap;
 
 	Image *image;
+	Image *bgImg;
 
 	/* For thesting themes */
 	bool testing;
