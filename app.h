@@ -64,7 +64,6 @@ private:
 
 	bool AuthenticateUser(bool focuspass);
 
-	static std::string findValidRandomTheme(const std::string &set);
 	static void replaceVariables(std::string &input,
 								 const std::string &var,
 								 const std::string &value);

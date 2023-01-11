@@ -267,7 +267,7 @@ void App::Run()
 	string themebase = "";
 	string themefile = "";
 	string themedir = "";
-	themeName = "";
+
 	if (testing)
 	{
 		themeName = testtheme;
@@ -280,7 +280,7 @@ void App::Run()
 		if ((pos = themeName.find(",")) != string::npos)
 		{
 			/* input is a set */
-			themeName = findValidRandomTheme(themeName);
+			themeName = cfg->findValidRandomTheme(themeName);
 			if (themeName == "")
 			{
 				themeName = "default";
@@ -1347,43 +1347,6 @@ void App::CloseLog()
 {
 	/* Simply closing the log */
 	logStream.closeLog();
-}
-
-
-/*
- * Choose a theme at random from the list in the config file. IF the theme
- * file cannot be found then issue a warning and try again.
- */
-string App::findValidRandomTheme(const string& set)
-{
-	/* extract random theme from theme set; return empty string on error */
-	string name = set;
-	struct stat buf;
-
-	if (name[name.length()-1] == ',')
-	{
-		name = name.substr(0, name.length() - 1);
-	}
-
-	Util::srandom(Util::makeseed());
-
-	vector<string> themes;
-	string themefile;
-	Cfg::split(themes, name, ',');
-	do {
-		int sel = Util::random() % themes.size();
-
-		name = Cfg::Trim(themes[sel]);
-		themefile = string(THEMESDIR) +"/" + name + THEMESFILE;
-		if (stat(themefile.c_str(), &buf) != 0)
-		{
-			themes.erase(find(themes.begin(), themes.end(), name));
-			logStream << APPNAME << ": Invalid theme in config: "
-				 << name << endl;
-			name = "";
-		}
-	} while (name == "" && themes.size());
-	return name;
 }
 
 

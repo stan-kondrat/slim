@@ -43,6 +43,7 @@ public:
 	static std::string Trim(const std::string &s);
 
     std::pair<std::string,std::string> nextSession();
+	static std::string findValidRandomTheme(const std::string &set);
 
 private:
 	void fillSessionList();

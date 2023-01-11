@@ -13,12 +13,16 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <algorithm>
 #include <unistd.h>
 #include <stdlib.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+
+#include "util.h"	// for Util::random
+#include "log.h"	// for logStream
 
 #include "cfg.h"
 
@@ -436,5 +440,42 @@ pair<string,string> Cfg::nextSession()
 {
 	currentSession = (currentSession + 1) % sessions.size();
 	return sessions[currentSession];
+}
+
+
+/*
+ * Choose a theme at random from the list in the config file. IF the theme
+ * file cannot be found then issue a warning and try again.
+ */
+string Cfg::findValidRandomTheme ( const string& set )
+{
+	/* extract random theme from theme set; return empty string on error */
+	string name = set;
+	struct stat buf;
+
+	if (name[name.length()-1] == ',')
+	{
+		name.erase(name.length() - 1);
+	}
+
+	Util::srandom(Util::makeseed());
+
+	vector<string> themes;
+	string themefile;
+	Cfg::split(themes, name, ',');
+	do {
+		int sel = Util::random() % themes.size();
+
+		name = Cfg::Trim(themes[sel]);
+		themefile = string(THEMESDIR) +"/" + name + THEMESFILE;
+		if (stat(themefile.c_str(), &buf) != 0)
+		{
+			themes.erase(find(themes.begin(), themes.end(), name));
+			logStream << APPNAME << ": Invalid theme in config: "
+				 << name << endl;
+			name = "";
+		}
+	} while (name == "" && themes.size());
+	return name;
 }
 

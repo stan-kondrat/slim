@@ -1,5 +1,6 @@
 /* slimlock
  * Copyright (c) 2010-2012 Joel Burget <joelburget@gmail.com>
+ * Copyright (c) 2022-2023 Rob Pearce <slim@flitspace.org.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,6 @@ using namespace std;
 bool AuthenticateUser();
 static int ConvCallback(int num_msgs, const struct pam_message **msg,
 						struct pam_response **resp, void *appdata_ptr);
-string findValidRandomTheme(const string& set);
 void HandleSignal(int sig);
 void *RaiseWindow(void *data);
 
@@ -54,14 +54,16 @@ Window win;
 Window root;
 Cfg* cfg;
 Panel* loginPanel;
-string themeName = "";
 
-pam_handle_t *pam_handle;
-struct pam_conv conv = {ConvCallback, NULL};
+static pam_handle_t *pam_handle;
 
-CARD16 dpms_standby, dpms_suspend, dpms_off, dpms_level;
-BOOL dpms_state, using_dpms;
-int term;
+static const struct pam_conv conv = {ConvCallback, NULL};
+
+static CARD16 dpms_standby, dpms_suspend, dpms_off, dpms_level;
+static BOOL dpms_state, using_dpms;
+
+static int term;	// Used by a C callback function
+
 
 static void die(const char *errstr, ...)
 {
@@ -111,32 +113,41 @@ int main(int argc, char **argv)
 	cfg = new Cfg;
 	cfg->readConf(CFGFILE);
 	cfg->readConf(SLIMLOCKCFG);
+	string themeName = "";
 	string themebase = "";
 	string themefile = "";
 	string themedir = "";
-	themeName = "";
+
 	themebase = string(THEMESDIR) + "/";
 	themeName = cfg->getOption("current_theme");
 	string::size_type pos;
-	if ((pos = themeName.find(",")) != string::npos) {
-		themeName = findValidRandomTheme(themeName);
+	if ((pos = themeName.find(",")) != string::npos)
+	{
+		themeName = cfg->findValidRandomTheme(themeName);
 	}
 
 	bool loaded = false;
-	while (!loaded) {
+	while (!loaded)
+	{
 		themedir =  themebase + themeName;
 		themefile = themedir + THEMESFILE;
-		if (!cfg->readConf(themefile)) {
-			if (themeName == "default") {
+		if (!cfg->readConf(themefile))
+		{
+			if (themeName == "default")
+			{
 				cerr << APPNAME << ": Failed to open default theme file "
 					 << themefile << endl;
 				exit(ERR_EXIT);
-			} else {
+			}
+			else
+			{
 				cerr << APPNAME << ": Invalid theme in config: "
 					 << themeName << endl;
 				themeName = "default";
 			}
-		} else {
+		}
+		else
+		{
 			loaded = true;
 		}
 	}
@@ -287,35 +298,6 @@ bool AuthenticateUser()
 	return(pam_authenticate(pam_handle, 0) == PAM_SUCCESS);
 }
 
-string findValidRandomTheme(const string& set)
-{
-	// extract random theme from theme set; return empty string on error
-	string name = set;
-	struct stat buf;
-
-	if (name[name.length() - 1] == ',') {
-		name.erase(name.length() - 1);
-	}
-
-	Util::srandom(Util::makeseed());
-
-	vector<string> themes;
-	string themefile;
-	Cfg::split(themes, name, ',');
-	do {
-		int sel = Util::random() % themes.size();
-
-		name = Cfg::Trim(themes[sel]);
-		themefile = string(THEMESDIR) +"/" + name + THEMESFILE;
-		if (stat(themefile.c_str(), &buf) != 0) {
-			themes.erase(find(themes.begin(), themes.end(), name));
-			cerr << APPNAME << ": Invalid theme in config: "
-				 << name << endl;
-			name = "";
-		}
-	} while (name == "" && themes.size());
-	return name;
-}
 
 void HandleSignal(int sig)
 {
