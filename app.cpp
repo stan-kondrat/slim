@@ -448,7 +448,7 @@ void App::Run()
 		if (panelclosed)
 		{
 			/* Init root */
-			LoginPanel->setBackground(themedir);
+			LoginPanel->setBackground();
 
 			/* Close all clients */
 			if (!testing)

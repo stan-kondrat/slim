@@ -235,7 +235,7 @@ Panel::~Panel()
  * Set the (previously loaded and adjusted) background image as the window
  * background for the root window.
  */
-void Panel::setBackground(const string& themedir)
+void Panel::setBackground(void)
 {
 	Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
 	XSetWindowBackgroundPixmap(Dpy, Root, p);

@@ -92,7 +92,7 @@ public:
 	void SwitchSession();
 
 	Atom BackgroundPixmapId;	// from XInternAtom -- does it need to be a member var?
-	void setBackground(const std::string &themedir);
+	void setBackground(void);
 	void HideCursor();
 
 private:
