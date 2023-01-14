@@ -49,4 +49,4 @@ welcome_shadow_yoffset 2
 welcome_shadow_color   #338353
 
 passwd_feedback_x       50%
-passwd_feedback_y       215
+passwd_feedback_y       80%

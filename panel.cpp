@@ -305,7 +305,6 @@ void Panel::ClosePanel()
 void Panel::WrongPassword(int timeout)
 {
 	string message;
-	XWindowAttributes attributes;
 
 	if ( mode != Mode_Lock )
 	{
@@ -319,8 +318,6 @@ void Panel::WrongPassword(int timeout)
 #endif
 	message = cfg->getOption("passwd_feedback_msg");
 
-	XGetWindowAttributes(Dpy, Root, &attributes);
-
 	XftDraw *draw = XftDrawCreate ( Dpy, Root,
 		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr) );
 	XftTextExtents8(Dpy, msgfont, reinterpret_cast<const XftChar8*>(message.c_str()),
@@ -330,8 +327,8 @@ void Panel::WrongPassword(int timeout)
 	string cfgY = cfg->getOption("passwd_feedback_y");
 	int shadowXOffset = cfg->getIntOption("msg_shadow_xoffset");
 	int shadowYOffset = cfg->getIntOption("msg_shadow_yoffset");
-	int msg_x = Cfg::absolutepos(cfgX, attributes.width, MsgExtents.width);
-	int msg_y = Cfg::absolutepos(cfgY, attributes.height, MsgExtents.height);
+	int msg_x = Cfg::absolutepos(cfgX, viewport.width, MsgExtents.width);
+	int msg_y = Cfg::absolutepos(cfgY, viewport.height, MsgExtents.height);
 
 	MsgExtents.x = msg_x;
 	MsgExtents.y = msg_y - MsgExtents.height;
