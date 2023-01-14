@@ -23,7 +23,6 @@
 #include <err.h>
 #include <signal.h>
 #include <unistd.h>			// for usleep
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
@@ -47,13 +46,14 @@ static int ConvCallback(int num_msgs, const struct pam_message **msg,
 void HandleSignal(int sig);
 void *RaiseWindow(void *data);
 
-// I really didn't wanna put these globals here, but it's the only way...
-Display* dpy;
-int scr;
-Window win;
-Window root;
-Cfg* cfg;
-Panel* loginPanel;
+// In the absence of a class instance to contain these, just make them file
+// public, as they're needed by multiple functions
+static Display* Dpy;
+static int Scr;
+static Window Root;
+static Window win;
+static Cfg* cfg;
+static Panel* LoginPanel;
 
 static pam_handle_t *pam_handle;
 
@@ -78,7 +78,7 @@ static void die(const char *errstr, ...)
 int main(int argc, char **argv)
 {
 	if((argc == 2) && !strcmp("-v", argv[1]))
-		die ( APPNAME "-" VERSION ", © 2010-2012 Joel Burget\n" );
+		die ( APPNAME "-" VERSION ", © 2010-2012 Joel Burget\nUpdates © 2022-2023 Rob Pearce\n" );
 	else if(argc != 1)
 		die ( "usage: " APPNAME " [-v]\n" );
 
@@ -109,7 +109,8 @@ int main(int argc, char **argv)
 	}
 
 	unsigned int cfg_passwd_timeout;
-	// Read user's current theme
+
+	/* Read configuration and theme */
 	cfg = new Cfg;
 	cfg->readConf(CFGFILE);
 	cfg->readConf(SLIMLOCKCFG);
@@ -123,6 +124,7 @@ int main(int argc, char **argv)
 	string::size_type pos;
 	if ((pos = themeName.find(",")) != string::npos)
 	{
+		/* input is a set */
 		themeName = cfg->findValidRandomTheme(themeName);
 	}
 
@@ -152,43 +154,44 @@ int main(int argc, char **argv)
 		}
 	}
 
-	const char *display = getenv("DISPLAY");
-	if (!display)
-		display = DISPLAY;
+	const char *DisplayName = getenv("DISPLAY");
+	if (!DisplayName)
+		DisplayName = DISPLAY;
 
-	if(!(dpy = XOpenDisplay(display)))
+	Dpy = XOpenDisplay(DisplayName);
+	if ( Dpy == 0 )
 		die(APPNAME": cannot open display\n");
-	scr = DefaultScreen(dpy);
+
+	/* Get screen and root window */
+	Scr = DefaultScreen(Dpy);
+	Root = RootWindow(Dpy, Scr);
 
 	XSetWindowAttributes wa;
 	wa.override_redirect = 1;
-	wa.background_pixel = BlackPixel(dpy, scr);
+	wa.background_pixel = BlackPixel(Dpy, Scr);
 
 	// Create a full screen window
-	root = RootWindow(dpy, scr);
-	win = XCreateWindow(dpy, root,
-			0, 0, DisplayWidth(dpy, scr), DisplayHeight(dpy, scr),
-			0, DefaultDepth(dpy, scr), CopyFromParent,
-			DefaultVisual(dpy, scr), CWOverrideRedirect | CWBackPixel,
+	win = XCreateWindow(Dpy, Root,
+			0, 0, DisplayWidth(Dpy, Scr), DisplayHeight(Dpy, Scr),
+			0, DefaultDepth(Dpy, Scr), CopyFromParent,
+			DefaultVisual(Dpy, Scr), CWOverrideRedirect | CWBackPixel,
 			&wa);
-	XMapWindow(dpy, win);
+	XMapWindow(Dpy, win);
 
-	XFlush(dpy);
+	XFlush(Dpy);
 	for (int len = 1000; len; len--) {
-		if(XGrabKeyboard(dpy, root, True, GrabModeAsync, GrabModeAsync, CurrentTime)
+		if(XGrabKeyboard(Dpy, Root, True, GrabModeAsync, GrabModeAsync, CurrentTime)
 			== GrabSuccess)
 			break;
 		usleep(1000);
 	}
-	XSelectInput(dpy, win, ExposureMask | KeyPressMask);
+	XSelectInput(Dpy, win, ExposureMask | KeyPressMask);
 
-	loginPanel = new Panel(dpy, scr, win, cfg, themedir, Panel::Mode_Lock);
+	/* Create panel */
+	LoginPanel = new Panel(Dpy, Scr, win, cfg, themedir, Panel::Mode_Lock);
+	LoginPanel->HideCursor();
 
-	// This hides the cursor if the user has that option enabled in their
-	// configuration
-	loginPanel->HideCursor();
-
-	int ret = pam_start(APPNAME, loginPanel->GetName().c_str(), &conv, &pam_handle);
+	int ret = pam_start(APPNAME, LoginPanel->GetName().c_str(), &conv, &pam_handle);
 	// If we can't start PAM, just exit because slimlock won't work right
 	if (ret != PAM_SUCCESS)
 		die("PAM: %s\n", pam_strerror(pam_handle, ret));
@@ -206,16 +209,16 @@ int main(int argc, char **argv)
 	unsigned int cfg_dpms_standby, cfg_dpms_off;
 	cfg_dpms_standby = Cfg::string2int(cfg->getOption("dpms_standby_timeout").c_str());
 	cfg_dpms_off = Cfg::string2int(cfg->getOption("dpms_off_timeout").c_str());
-	using_dpms = DPMSCapable(dpy) && (cfg_dpms_standby > 0);
+	using_dpms = DPMSCapable(Dpy) && (cfg_dpms_standby > 0);
 	if (using_dpms) {
-		DPMSGetTimeouts(dpy, &dpms_standby, &dpms_suspend, &dpms_off);
+		DPMSGetTimeouts(Dpy, &dpms_standby, &dpms_suspend, &dpms_off);
 
-		DPMSSetTimeouts(dpy, cfg_dpms_standby,
+		DPMSSetTimeouts(Dpy, cfg_dpms_standby,
 						cfg_dpms_standby, cfg_dpms_off);
 
-		DPMSInfo(dpy, &dpms_level, &dpms_state);
+		DPMSInfo(Dpy, &dpms_level, &dpms_state);
 		if (!dpms_state)
-			DPMSEnable(dpy);
+			DPMSEnable(Dpy);
 	}
 
 	// Get password timeout
@@ -226,35 +229,43 @@ int main(int argc, char **argv)
 	pthread_t raise_thread;
 	pthread_create(&raise_thread, NULL, RaiseWindow, NULL);
 
+#if 0	// The DM code does this:
+			/* Init Root */
+			LoginPanel->setBackground();
+
+			/* Show panel */
+			LoginPanel->OpenPanel();
+#endif
+
 	// Main loop
 	while (true)
 	{
-		loginPanel->ResetPasswd();
+		LoginPanel->ResetPasswd();
 
 		// AuthenticateUser returns true if authenticated
 		if (AuthenticateUser())
 			break;
 
-		loginPanel->WrongPassword(cfg_passwd_timeout);
+		LoginPanel->WrongPassword(cfg_passwd_timeout);
 	}
 
 	// kill thread before destroying the window that it's supposed to be raising
 	pthread_cancel(raise_thread);
 
-	loginPanel->ClosePanel();
-	delete loginPanel;
+	LoginPanel->ClosePanel();
+	delete LoginPanel;
 
 	// Get DPMS stuff back to normal
 	if (using_dpms) {
-		DPMSSetTimeouts(dpy, dpms_standby, dpms_suspend, dpms_off);
+		DPMSSetTimeouts(Dpy, dpms_standby, dpms_suspend, dpms_off);
 		// turn off DPMS if it was off when we entered
 		if (!dpms_state)
-			DPMSDisable(dpy);
+			DPMSDisable(Dpy);
 	}
 
-	XCloseDisplay(dpy);
+	XCloseDisplay(Dpy);
 
-	close(lock_file);
+	close(lock_file);	// will inherently release the flock
 
 	if(cfg->getOption("tty_lock") == "1") {
 		if ((ioctl(term, VT_UNLOCKSWITCH)) == -1) {
@@ -270,7 +281,7 @@ int main(int argc, char **argv)
 static int ConvCallback(int num_msgs, const struct pam_message **msg,
 						struct pam_response **resp, void *appdata_ptr)
 {
-	loginPanel->EventHandler(Panel::Get_Passwd);
+	LoginPanel->EventHandler(Panel::Get_Passwd);
 
 	// PAM expects an array of responses, one for each message
 	if (num_msgs == 0 ||
@@ -284,7 +295,7 @@ static int ConvCallback(int num_msgs, const struct pam_message **msg,
 
 		// return code is currently not used but should be set to zero
 		resp[i]->resp_retcode = 0;
-		if ((resp[i]->resp = strdup(loginPanel->GetPasswd().c_str())) == NULL) {
+		if ((resp[i]->resp = strdup(LoginPanel->GetPasswd().c_str())) == NULL) {
 			free(*resp);
 			return PAM_BUF_ERR;
 		}
@@ -303,10 +314,10 @@ void HandleSignal(int sig)
 {
 	// Get DPMS stuff back to normal
 	if (using_dpms) {
-		DPMSSetTimeouts(dpy, dpms_standby, dpms_suspend, dpms_off);
+		DPMSSetTimeouts(Dpy, dpms_standby, dpms_suspend, dpms_off);
 		// turn off DPMS if it was off when we entered
 		if (!dpms_state)
-			DPMSDisable(dpy);
+			DPMSDisable(Dpy);
 	}
 
 	if ((ioctl(term, VT_UNLOCKSWITCH)) == -1) {
@@ -314,8 +325,8 @@ void HandleSignal(int sig)
 	}
 	close(term);
 
-	loginPanel->ClosePanel();
-	delete loginPanel;
+	LoginPanel->ClosePanel();
+	delete LoginPanel;
 
 	die(APPNAME": Caught signal; dying\n");
 }
@@ -323,7 +334,7 @@ void HandleSignal(int sig)
 void* RaiseWindow(void *data)
 {
 	while(1) {
-		XRaiseWindow(dpy, win);
+		XRaiseWindow(Dpy, win);
 		sleep(1);
 	}
 
