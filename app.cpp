@@ -155,7 +155,7 @@ App::App(int argc, char** argv)
 #endif
 	  cfg(0),
 	  firstlogin(true), daemonmode(false), force_nodaemon(false),
-	  testing(false),
+	  testing(false), tww(1280), twh(1024),
 #ifdef USE_CONSOLEKIT
 	  consolekit_support_enabled(true),
 #endif
@@ -163,12 +163,13 @@ App::App(int argc, char** argv)
 {
 	int tmp;
 	mcookie = string(App::mcookiesize, 'a');
+	char * win_size = 0;
 	
 	/* Parse command line
 	   Note: we allow an arg for the -n option to handle "-nodaemon" as
 			 originally quoted in the docs. However, the parser has never
 			 checked the arg, so "-noddy" works exactly the same */
-	while ((tmp = getopt(argc, argv, "c:vhsp:n::d")) != EOF)
+	while ((tmp = getopt(argc, argv, "c:vhsp:w:n::d")) != EOF)
 	{
 		switch (tmp)
 		{
@@ -195,6 +196,16 @@ App::App(int argc, char** argv)
 				cerr << "The -p option requires an argument" << endl;
 				exit(ERR_EXIT);
 			}
+			break;
+
+		case 'w':	/* Window size for theme test mode */
+			if ( !testing )
+			{
+				cerr << "The -w option is only valid after -p" << endl;
+				exit(ERR_EXIT);
+			}
+			win_size = optarg;
+			// Test for valid syntax later
 			break;
 
 		case 'd':	/* Daemon mode */
@@ -229,6 +240,7 @@ App::App(int argc, char** argv)
 			<< "  -s                   start for systemd, disable consolekit support" << endl
 #endif
 			<< "  -p /path/to/themedir preview theme" << endl
+			<< "  -w <www>x<hhh>       size of window for preview" << endl
 			<< "  -h                   show this help" << endl
 			<< "  -v                   show version" << endl;
 			exit(OK_EXIT);
@@ -242,8 +254,19 @@ App::App(int argc, char** argv)
 		exit(ERR_EXIT);
 	}
 #endif /* XNEST_DEBUG */
-
+	if ( win_size )
+	{
+		char* sep = 0;
+		tww = (short)strtol ( win_size, &sep, 10 );
+		if ( ( sep == 0 ) || ( *sep++ != 'x' ) )
+		{
+			cerr << "Malformed argument to -w option" << endl;
+			exit(ERR_EXIT);
+		}
+		twh = (short)strtol ( sep, &sep, 10 );
+	}
 }
+
 
 void App::Run()
 {
@@ -391,7 +414,7 @@ void App::Run()
 	if (testing)
 	{
 		Window RealRoot = Root;		// already done RootWindow(Dpy, Scr);
-		Root = XCreateSimpleWindow(Dpy, RealRoot, 0, 0, 1280, 1024, 0, 0, 0);
+		Root = XCreateSimpleWindow(Dpy, RealRoot, 0, 0, tww, twh, 0, 0, 0);
 		XMapWindow(Dpy, Root);
 		XFlush(Dpy);
 	}
@@ -401,7 +424,8 @@ void App::Run()
 	}
 
 	/* Create panel */
-	LoginPanel = new Panel(Dpy, Scr, Root, cfg, themedir, Panel::Mode_DM);
+	LoginPanel = new Panel ( Dpy, Scr, Root, cfg, themedir,
+							( testing ? Panel::Mode_Test : Panel::Mode_DM ) );
 	LoginPanel->HideCursor();
 
 	bool firstloop = true; /* 1st time panel is shown (for automatic username) */

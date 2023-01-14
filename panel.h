@@ -69,6 +69,7 @@ public:
 
 	enum PanelType {
 		Mode_DM,
+		Mode_Test,
 		Mode_Lock
 	};
 

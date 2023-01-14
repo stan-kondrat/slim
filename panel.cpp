@@ -36,6 +36,15 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		Win = root;
 		viewport = GetPrimaryViewport();
 	}
+	else if ( mode == Mode_Test )
+	{
+		XWindowAttributes attributes;
+		XGetWindowAttributes(Dpy, Root, &attributes);
+		viewport.x      = attributes.x;
+		viewport.y      = attributes.y;
+		viewport.width  = attributes.width;
+		viewport.height = attributes.height;
+	}
 	else
 	{
 		/* The existing behaviour in DM mode was to always use the full 

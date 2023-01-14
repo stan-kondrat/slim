@@ -100,6 +100,7 @@ private:
 	/* For testing themes */
 	char *testtheme;	///< Name of the theme to test, from command line
 	bool testing;		///< Whether we're running in theme testing mode
+	short tww, twh;		///< The user's requested test window size
 
 #ifdef USE_CONSOLEKIT
 	bool consolekit_support_enabled;	///< Whether to use ConsoleKit (not compatible with systemd)
