@@ -40,8 +40,8 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	{
 		XWindowAttributes attributes;
 		XGetWindowAttributes(Dpy, Root, &attributes);
-		viewport.x      = attributes.x;
-		viewport.y      = attributes.y;
+		viewport.x      = 0;	// Not actually used. The window's position
+		viewport.y      = 0;	// is irrelevant to our drawing functions
 		viewport.width  = attributes.width;
 		viewport.height = attributes.height;
 	}

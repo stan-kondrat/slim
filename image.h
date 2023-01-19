@@ -29,10 +29,10 @@ public:
 
 	const unsigned char *getPNGAlpha() const {
 		return(png_alpha);
-	};
+	}
 	const unsigned char *getRGBData() const {
 		return(rgb_data);
-	};
+	}
 
 	void getPixel(double px, double py, unsigned char *pixel);
 	void getPixel(double px, double py, unsigned char *pixel,
@@ -40,13 +40,10 @@ public:
 
 	int Width() const {
 		return(width);
-	};
+	}
 	int Height() const {
 		return(height);
-	};
-	void Quality(const int q) {
-		quality_ = q;
-	};
+	}
 
 	bool Read(const char *filename);
 
@@ -68,8 +65,6 @@ private:
 	int width, height, area;
 	unsigned char *rgb_data;
 	unsigned char *png_alpha;
-
-	int quality_;
 
 	int readJpeg(const char *filename, int *width, int *height,
 		unsigned char **rgb);

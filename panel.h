@@ -141,7 +141,7 @@ private:
 	XftColor entershadowcolor;
 	ActionType action;
 	FieldType field;
-	XGlyphInfo MsgExtents;	///@todo should this be a Rectangle?
+	XGlyphInfo MsgExtents;
 	
 	/* Username/Password */
 	std::string NameBuffer;
@@ -158,7 +158,6 @@ private:
 	int input_pass_y;
 	int inputShadowXOffset;
 	int inputShadowYOffset;
-	int input_cursor_height;
 	int welcome_x;
 	int welcome_y;
 	int welcome_shadow_xoffset;
@@ -179,8 +178,6 @@ private:
 	Image *image;
 	Image *bgImg;
 
-	/* For thesting themes */
-	bool testing;
 	std::string themedir;
 
 	/* Session handling */

@@ -52,7 +52,6 @@ Cfg::Cfg()
 	options.insert(option("sessionstop_cmd",""));
 	options.insert(option("console_cmd","/usr/bin/xterm -C -fg white -bg black +sb -g %dx%d+%d+%d -fn %dx%d -T ""Console login"" -e /bin/sh -c ""/bin/cat /etc/issue; exec /bin/login"""));
 	options.insert(option("screenshot_cmd","import -window root /slim.png"));
-	options.insert(option("session_msg","Session:"));
 	options.insert(option("default_user",""));
 	options.insert(option("focus_password","no"));
 	options.insert(option("auto_login","no"));
@@ -81,9 +80,6 @@ Cfg::Cfg()
 	options.insert(option("input_name_y","154"));
 	options.insert(option("input_pass_x","-1")); /* default is single inputbox */
 	options.insert(option("input_pass_y","-1"));
-	options.insert(option("input_cursor_height","20"));
-	options.insert(option("input_maxlength_name","20"));
-	options.insert(option("input_maxlength_passwd","20"));
 
 	options.insert(option("welcome_msg","Welcome to %host"));
 	options.insert(option("welcome_font","Verdana:size=14"));
@@ -115,6 +111,7 @@ Cfg::Cfg()
 	options.insert(option("msg_shadow_yoffset", "0"));
 	options.insert(option("msg_shadow_color","#FFFFFF"));
 
+	options.insert(option("session_msg","Session:"));
 	options.insert(option("session_font","Verdana:size=16:bold"));
 	options.insert(option("session_color","#FFFFFF"));
 	options.insert(option("session_x","50%"));

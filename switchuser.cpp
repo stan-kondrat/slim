@@ -23,7 +23,7 @@ using namespace std;
 
 SwitchUser::SwitchUser(struct passwd *pw, Cfg *c, const string& display,
 					   char** _env)
-	: cfg(c), Pw(pw), displayName(display), env(_env)
+	: cfg(c), Pw(pw), env(_env)
 {
 }
 
