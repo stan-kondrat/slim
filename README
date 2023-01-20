@@ -9,7 +9,7 @@ INTRODUCTION
     SLiM was originally based on the last stable release of Login.app 
     by Per Lidén.
 
-    New features:
+    Features:
     - External themes and configuration
     - PNG support with alpha transparency for panel
     - PNG / JPEG support for backgrounds
@@ -58,7 +58,7 @@ THEMES
 
 COPYRIGHT
     SLiM is copyright (c) 2004-13 by Simone Rota, Johannes Winkelmann,
-    Nobuhiro Iwamatsu and 2022 by Rob Pearce. It is available under the
+    Nobuhiro Iwamatsu and 2022-23 by Rob Pearce. It is available under the
     GNU General Public License.
     See the COPYING file for the complete license.
 
