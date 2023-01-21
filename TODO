@@ -1,3 +1,7 @@
+Important things
+----------------
+- Make it work better with multi-screen setups
+
 Improvements suggested long ago
 -------------------------------
 - Don't start X server if theme's not found
