@@ -9,16 +9,12 @@
 # LIBFONTCONFIG_LIBS, link information
 # LIBFONTCONFIG_CFLAGS, cflags for include information
 
-IF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} LESS 2.5)
-  INCLUDE(UsePkgConfig)
-  PKGCONFIG(fontconfig _fontconfigIncDir _fontconfigLinkDir _fontconfigLinkFlags _fontconfigCflags)
-  SET(FONTCONFIG_LIBS ${_fontconfigCflags})
-ELSE (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} LESS 2.5)
-  INCLUDE(FindPkgConfig)
-  pkg_search_module(FONTCONFIG REQUIRED fontconfig)
-ENDIF (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} LESS 2.5)
 
-#INCLUDE(UsePkgConfig)
+if(NOT PKG_CONFIG_FOUND)
+  INCLUDE(FindPkgConfig)
+ENDIF(NOT PKG_CONFIG_FOUND)
+pkg_search_module(FONTCONFIG REQUIRED fontconfig)
+
 
 # use pkg-config to get the directories and then use these values
 # in the FIND_PATH() and FIND_LIBRARY() calls

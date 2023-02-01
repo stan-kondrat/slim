@@ -1,10 +1,14 @@
 [Unit]
 Description=SLiM Simple Login Manager
+Documentation=man:slim(1)
 After=systemd-user-sessions.service
 
 [Service]
 ExecStart=/usr/bin/slim -n -s
 Restart=on-failure
 
+CapabilityBoundingSet=~CAP_SYS_PTRACE
+
 [Install]
 Alias=display-manager.service
+WantedBy=multi-user.target
