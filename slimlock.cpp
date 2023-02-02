@@ -229,13 +229,11 @@ int main(int argc, char **argv)
 	pthread_t raise_thread;
 	pthread_create(&raise_thread, NULL, RaiseWindow, NULL);
 
-#if 0	// The DM code does this:
-			/* Init Root */
-			LoginPanel->setBackground();
+	/* Init Root */
+	LoginPanel->setBackground();
 
-			/* Show panel */
-			LoginPanel->OpenPanel();
-#endif
+	/* Show panel */
+	LoginPanel->OpenPanel();
 
 	// Main loop
 	while (true)

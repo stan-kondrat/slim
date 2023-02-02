@@ -112,7 +112,6 @@ private:
 							int xOffset, int yOffset);
 
 	Rectangle GetPrimaryViewport();
-	void ApplyBackground(Rectangle = Rectangle());
 
 	/* Private data */
 	PanelType mode; /* work mode */
@@ -121,9 +120,9 @@ private:
 	int Scr;
 	Window Win;
 	Window Root;
+	Window RealRoot;
 	int X, Y;
 	GC TextGC;
-	GC WinGC;
 	XftFont *font;
 	XftColor inputshadowcolor;
 	XftColor inputcolor;

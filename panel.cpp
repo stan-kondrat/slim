@@ -28,12 +28,11 @@ using namespace std;
 
 Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 			 const string& themedir, PanelType panel_mode)
-	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Root(root),
+	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Root(root), RealRoot(root),
 	  session_name(""), session_exec("")
 {
 	if (mode == Mode_Lock)
 	{
-		Win = root;
 		viewport = GetPrimaryViewport();
 	}
 	else if ( mode == Mode_Test )
@@ -68,16 +67,6 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	gcv.graphics_exposures = False;
 
 	TextGC = XCreateGC(Dpy, Root, gcm, &gcv);
-
-	if (mode == Mode_Lock) {
-		gcm = GCGraphicsExposures;
-		gcv.graphics_exposures = False;
-		WinGC = XCreateGC(Dpy, Win, gcm, &gcv);
-		if (WinGC == 0) {
-			cerr << APPNAME << ": failed to create pixmap\n.";
-			exit(ERR_EXIT);
-		}
-	}
 
 	// Intern _XROOTPMAP_ID property  -  does this belong here?
 	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
@@ -175,37 +164,20 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	X = Cfg::absolutepos(cfgX, viewport.width, image->Width());
 	Y = Cfg::absolutepos(cfgY, viewport.height, image->Height());
 
-	if (mode == Mode_Lock) {
-		// In slimlock, the window we draw on is always the root, not the 
-		// XSimpleWindow created by OpenPanel to represent the panel area.
-		// Thus we apply a hack to offset the input positions. It's a shame
-		// we don't do the job properly, as this hack isn't applied to any
-		// of the static text
-		input_name_x += X;
-		input_name_y += Y;
-		input_pass_x += X;
-		input_pass_y += Y;
-	}
+	/* Merge image with cropped background, so that PanelPixmap is the
+	 * panel with the relevant part of the X root image included instead
+	 * of the alpha channel */
+	image->Merge(bgImg, X, Y);
 
-	if (mode == Mode_Lock) {
-		/* Merge image into background without crop, so that PanelPixmap is
-		 * the whole screen (background image with panel drawn on it) */
-		image->Merge_non_crop(bgImg, X, Y);
-	} else {
-		/* Merge image with cropped background, so that PanelPixmap is the
-		 * panel with the relevant part of the X root image included instead
-		 * of the alpha channel */
-		image->Merge(bgImg, X, Y);
-	}
 	PanelPixmap = image->createPixmap(Dpy, Scr, Root);
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
 
-	if (mode == Mode_Lock) {
+	if (mode == Mode_Lock)
+	{
 		SetName(getenv("USER"));
 		field = Get_Passwd;
-		OnExpose();
 	}
 	MsgExtents.width = 0;
 }
@@ -231,9 +203,6 @@ Panel::~Panel()
 	XftFontClose(Dpy, msgfont);
 	XftFontClose(Dpy, welcomefont);
 	XftFontClose(Dpy, enterfont);
-
-	if (mode == Mode_Lock)
-		XFreeGC(Dpy, WinGC);
 
 	delete bgImg;
 	delete image;
@@ -267,13 +236,13 @@ void Panel::HideCursor()
 		Pixmap	cursorpixmap;
 		Cursor	cursor;
 		cursordata[0]=0;
-		cursorpixmap = XCreateBitmapFromData(Dpy, Root, cursordata, 1, 1);
+		cursorpixmap = XCreateBitmapFromData(Dpy, RealRoot, cursordata, 1, 1);
 		black.red=0;
 		black.green=0;
 		black.blue=0;
 		cursor = XCreatePixmapCursor(Dpy, cursorpixmap, cursorpixmap, &black, &black, 0, 0);
 		//XFreePixmap(dpy, cursorpixmap);		// man page is confusing as to whether this is right
-		XDefineCursor(Dpy, Root, cursor);
+		XDefineCursor(Dpy, RealRoot, cursor);
 	}
 }
 
@@ -450,25 +419,18 @@ void Panel::TextCursor(int visible)
 	XftTextExtents8(Dpy, font, (XftChar8*)text, strlen(text), &extents);
 	xx += extents.width;
 
-	if(visible == SHOW) {
-		if (mode == Mode_Lock) {
-			xx += viewport.x;
-			yy += viewport.y;
-			y2 += viewport.y;
-		}
+	if ( visible == SHOW )
+	{
 		XSetForeground(Dpy, TextGC,
 			GetColor(cfg->getOption("input_color").c_str()));
 
 		XDrawLine(Dpy, Win, TextGC,
 				  xx+1, yy-cheight,
 				  xx+1, y2);
-	} else {
-		if (mode == Mode_Lock)
-			ApplyBackground(Rectangle(xx+1, yy-cheight,
-				1, y2-(yy-cheight)+1));
-		else
-			XClearArea(Dpy, Win, xx+1, yy-cheight,
-				1, y2-(yy-cheight)+1, false);
+	}
+	else
+	{
+		XClearArea(Dpy, Win, xx+1, yy-cheight, 1, y2-(yy-cheight)+1, false);
 	}
 }
 
@@ -505,12 +467,7 @@ void Panel::EventHandler(const Panel::FieldType& curfield)
 			}
 			if ( MsgExtents.width > 0 )
 			{
-				if (mode == Mode_Lock)
-					ApplyBackground(Rectangle(MsgExtents.x,
-						MsgExtents.y, MsgExtents.width+1,
-						MsgExtents.height+2));
-				else
-					XClearArea(Dpy, Root, MsgExtents.x, MsgExtents.y,
+				XClearArea(Dpy, Root, MsgExtents.x, MsgExtents.y,
 						MsgExtents.width+1, MsgExtents.height+2, false);
 				MsgExtents.width = 0;
 			}
@@ -525,10 +482,7 @@ void Panel::OnExpose(void)
 	XftDraw *draw = XftDrawCreate(Dpy, Win,
 		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
-	if (mode == Mode_Lock)
-		ApplyBackground();
-	else
-		XClearWindow(Dpy, Win);
+	XClearWindow(Dpy, Win);
 
 	if (input_pass_x != input_name_x || input_pass_y != input_name_y){
 		SlimDrawString8 (draw, &inputcolor, font, input_name_x, input_name_y,
@@ -723,12 +677,7 @@ bool Panel::OnKeyPress(XEvent& event)
 						formerString.length(), &extents);
 		int maxLength = extents.width;
 
-		if (mode == Mode_Lock)
-			ApplyBackground(Rectangle(input_pass_x - 3,
-				input_pass_y - maxHeight - 3,
-				maxLength + 6, maxHeight + 6));
-		else
-			XClearArea(Dpy, Win, xx - 3, yy-maxHeight - 3,
+		XClearArea(Dpy, Win, xx - 3, yy-maxHeight - 3,
 				maxLength + 6, maxHeight + 6, false);
 	}
 
@@ -811,11 +760,13 @@ void Panel::ShowText()
 	}
 	XftDrawDestroy(draw);
 
-	if (mode == Mode_Lock) {
+	if ( singleInputMode && (mode == Mode_Lock) )
+	{
 		// If only the password box is visible, draw the user name somewhere too
-		string user_msg = "User: " + GetName();
 		int show_username = cfg->getIntOption("show_username");
-		if (singleInputMode && show_username) {
+		if (show_username)
+		{
+			string user_msg = "User: " + GetName();
 			Message(user_msg);
 		}
 	}
@@ -875,11 +826,6 @@ void Panel::SlimDrawString8(XftDraw *d, XftColor *color, XftFont *font,
 							XftColor* shadowColor,
 							int xOffset, int yOffset)
 {
-	if (mode == Mode_Lock) {
-		x += viewport.x;
-		y += viewport.y;
-	}
-
 	if (xOffset && yOffset) {
 		XftDrawStringUtf8(d, shadowColor, font, x+xOffset, y+yOffset,
 			reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
@@ -888,6 +834,7 @@ void Panel::SlimDrawString8(XftDraw *d, XftColor *color, XftFont *font,
 	XftDrawStringUtf8(d, color, font, x, y,
 		reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
 }
+
 
 Panel::ActionType Panel::getAction(void) const
 {
@@ -954,14 +901,14 @@ Rectangle Panel::GetPrimaryViewport()
 	fallback.width = DisplayWidth(Dpy, Scr);
 	fallback.height = DisplayHeight(Dpy, Scr);
 
-	resources = XRRGetScreenResources(Dpy, Win);
+	resources = XRRGetScreenResources(Dpy, Root);
 	if (!resources)
 	{
 		cerr << "XRRGetScreenResources failed\n";
 	    return fallback;
 	}
 
-	primary = XRRGetOutputPrimary(Dpy, Win);
+	primary = XRRGetOutputPrimary(Dpy, Root);
 	if (!primary) {
 	    // No "primary" defined (by the WM, usually) but could still have
 	    // multiple monitors or setups, so default to the first output.
@@ -1006,30 +953,13 @@ Rectangle Panel::GetPrimaryViewport()
 	XRRFreeOutputInfo(primary_info);
 	XRRFreeScreenResources(resources);
 
+	// As we're only using one monitor, which is only part of the root window,
+	// replace Root with a viewport window
+	Root = XCreateSimpleWindow ( Dpy, RealRoot, 
+					result.x, result.y, result.width, result.height, 0, 0, 0);
+	XMapWindow(Dpy, Root);
+	XFlush(Dpy);
+
 	return result;
-}
-
-
-/**
- * Re-draw the background over a rectangle. This method is only used in "lock"
- * mode - the DM mode uses XClearArea instead.
- */
-void Panel::ApplyBackground(Rectangle rect)
-{
-	int ret = 0;
-
-	if (rect.is_empty()) {
-	    rect.x = 0;
-	    rect.y = 0;
-	    rect.width = viewport.width;
-	    rect.height = viewport.height;
-	}
-
-	ret = XCopyArea(Dpy, PanelPixmap, Win, WinGC,
-		rect.x, rect.y, rect.width, rect.height,
-		viewport.x + rect.x, viewport.y + rect.y);
-
-	if (!ret)
-	    cerr << APPNAME << ": failed to put pixmap on the screen\n.";
 }
 
