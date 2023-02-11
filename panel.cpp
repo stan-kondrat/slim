@@ -28,14 +28,10 @@ using namespace std;
 
 Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 			 const string& themedir, PanelType panel_mode)
-	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Root(root), RealRoot(root),
-	  session_name(""), session_exec("")
+	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Win(0),
+	  Root(root), RealRoot(root), session_name(""), session_exec("")
 {
-	if (mode == Mode_Lock)
-	{
-		viewport = GetPrimaryViewport();
-	}
-	else if ( mode == Mode_Test )
+	if ( mode == Mode_Test )
 	{
 		XWindowAttributes attributes;
 		XGetWindowAttributes(Dpy, Root, &attributes);
@@ -44,7 +40,8 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		viewport.width  = attributes.width;
 		viewport.height = attributes.height;
 	}
-	else
+#ifndef TEST_VER_USE_RANDR
+	else if (mode == Mode_DM)
 	{
 		/* The existing behaviour in DM mode was to always use the full 
 		 * screen size */
@@ -57,6 +54,11 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		viewport.width = XWidthOfScreen(ScreenOfDisplay(Dpy, Scr));
 		viewport.height = XHeightOfScreen(ScreenOfDisplay(Dpy, Scr));
 	}
+#endif	// TEST_VER_USE_RANDR
+	else // (mode == Mode_Lock)
+	{
+		viewport = GetPrimaryViewport();
+	}
 
 	/* Init GC */
 	XGCValues gcv;
@@ -66,7 +68,7 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	gcv.background = GetColor("white");
 	gcv.graphics_exposures = False;
 
-	TextGC = XCreateGC(Dpy, Root, gcm, &gcv);
+	TextGC = XCreateGC(Dpy, RealRoot, gcm, &gcv);
 
 	// Intern _XROOTPMAP_ID property  -  does this belong here?
 	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
@@ -169,7 +171,7 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	 * of the alpha channel */
 	image->Merge(bgImg, X, Y);
 
-	PanelPixmap = image->createPixmap(Dpy, Scr, Root);
+	PanelPixmap = image->createPixmap(Dpy, Scr, RealRoot);
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
@@ -215,6 +217,12 @@ Panel::~Panel()
  */
 void Panel::setBackground(void)
 {
+	if ( Root == 0 )
+	{
+		Root = XCreateSimpleWindow ( Dpy, RealRoot, 
+						viewport.x, viewport.y, viewport.width, viewport.height, 0, 0, 0);
+		XMapWindow(Dpy, Root);
+	}
 	Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
 	XSetWindowBackgroundPixmap(Dpy, Root, p);
 	XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
@@ -277,6 +285,12 @@ void Panel::ClosePanel()
 	XUngrabKeyboard(Dpy, CurrentTime);
 	XUnmapWindow(Dpy, Win);
 	XDestroyWindow(Dpy, Win);
+	if ( Root != RealRoot )
+	{
+		XUnmapWindow(Dpy, Root);
+		XDestroyWindow(Dpy, Root);
+		Root = 0;
+	}
 	XFlush(Dpy);
 }
 
@@ -440,7 +454,7 @@ void Panel::EventHandler(const Panel::FieldType& curfield)
 	field = curfield;
 	bool loop = true;
 
-	if ( (mode != Mode_Lock) && ( MsgExtents.width == 0 ) )
+	if ( (mode != Mode_Lock) && ( MsgExtents.width == 0 ) && Win )
 		OnExpose();
 
 	struct pollfd x11_pfd = {0};

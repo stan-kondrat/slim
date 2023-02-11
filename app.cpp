@@ -474,13 +474,6 @@ void App::Run()
 			/* Init root */
 			LoginPanel->setBackground();
 
-			/* Close all clients */
-			if (!testing)
-			{
-				KillAllClients(False);
-				KillAllClients(True);
-			}
-
 			/* Show panel */
 			LoginPanel->OpenPanel();
 		}
@@ -543,6 +536,13 @@ void App::Run()
 				break;
 			default:
 				break;
+		}
+
+		/* Close all clients ready for another round */
+		if (!testing)
+		{
+			KillAllClients(False);
+			KillAllClients(True);
 		}
 	}
 }
@@ -839,7 +839,7 @@ void App::Login()
 	}
 #endif
 
-/* Close all clients */
+	/* Close all clients */
 	KillAllClients(False);
 	KillAllClients(True);
 
@@ -999,6 +999,9 @@ void App::RestartServer()
  * Iterates over the list of all windows declared as children of Root and
  * kills the clients. Since Root is the root window of the screen, all 
  * running applications (of the logged-in session) should be caught by this
+ * 
+ * **** WARNING **** this includes child windows in the panel! Only call this
+ * when the panel is closed!
  */
 void App::KillAllClients(Bool top)
 {
