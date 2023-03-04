@@ -40,23 +40,9 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		viewport.width  = attributes.width;
 		viewport.height = attributes.height;
 	}
-#ifndef TEST_VER_USE_RANDR
-	else if (mode == Mode_DM)
+	else
 	{
-		/* The existing behaviour in DM mode was to always use the full 
-		 * screen size */
-		viewport.x = 0;
-		viewport.y = 0;
-		// AFAICT the following two lines, used in GetPrimaryViewport, do
-		// exactly the same as the ones that follow, which were used elsewhere
-		//viewport.width = DisplayWidth(Dpy, Scr);
-		//viewport.height = DisplayHeight(Dpy, Scr);
-		viewport.width = XWidthOfScreen(ScreenOfDisplay(Dpy, Scr));
-		viewport.height = XHeightOfScreen(ScreenOfDisplay(Dpy, Scr));
-	}
-#endif	// TEST_VER_USE_RANDR
-	else // (mode == Mode_Lock)
-	{
+		// Systems with multiple monitors need us to pick one
 		viewport = GetPrimaryViewport();
 	}
 
