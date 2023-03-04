@@ -152,7 +152,6 @@ Cfg::~Cfg()
  */
 bool Cfg::readConf(string configfile)
 {
-	int n = -1;
 	size_t pos = 0;
 	string line, next, op, fn(configfile);
 	map<string,string>::iterator it;

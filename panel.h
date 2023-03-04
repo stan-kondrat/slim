@@ -114,8 +114,8 @@ private:
 	Rectangle GetPrimaryViewport();
 
 	/* Private data */
-	PanelType mode; /* work mode */
 	Cfg *cfg;
+	PanelType mode; /* work mode */
 	Display *Dpy;
 	int Scr;
 	Window Win;

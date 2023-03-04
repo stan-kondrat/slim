@@ -24,6 +24,7 @@ set(SLIM_VERSION "${SLIM_VERSION_MAJOR}.${SLIM_VERSION_MINOR}.${SLIM_VERSION_PAT
 
 set(PKGDATADIR "${CMAKE_INSTALL_FULL_DATADIR}/slim")
 set(SYSCONFDIR "/etc")
+set(SYSTEMDDIR "/lib/systemd")
 
 set(SLIM_DEFINITIONS)
 if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD" OR
@@ -237,10 +238,10 @@ install(FILES slim.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 # configure - in theory we should use CMAKE_INSTALL_SYSCONFDIR but that doesn't work
 install(FILES slim.conf DESTINATION ${SYSCONFDIR})
 
-# systemd service file - commented out as broken - not all Linux uses systemd!
-#if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-#	install(FILES slim.service DESTINATION ${LIBDIR}/systemd/system)
-#endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+# systemd service file - condition is wrong - not all Linux uses systemd!
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	install(FILES slim.service DESTINATION ${SYSTEMDDIR}/system)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 #slimlock
 if(BUILD_SLIMLOCK)
