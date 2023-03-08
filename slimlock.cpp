@@ -10,11 +10,10 @@
 
 #include <cstdio>
 #include <cstring>
-#include <algorithm>
+#include <iostream>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <linux/vt.h>
-#include <X11/keysym.h>
+#include <linux/vt.h>		// for keyboard locking
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/dpms.h>
@@ -26,8 +25,6 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
-#include <sys/file.h>
-#include <fcntl.h>
 
 #include "cfg.h"
 #include "util.h"

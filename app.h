@@ -2,6 +2,7 @@
  *  Copyright (C) 1997, 1998 Per Liden
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
+ *  Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,16 +14,6 @@
 #define _APP_H_
 
 #include <X11/Xlib.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <setjmp.h>
-#include <stdlib.h>
-#include <iostream>
-#include "panel.h"
-#include "cfg.h"
-#include "image.h"
 
 #ifdef USE_PAM
 #include "PAM.h"
@@ -30,6 +21,11 @@
 #ifdef USE_CONSOLEKIT
 #include "Ck.h"
 #endif
+
+// Forward declarations
+class Panel;
+class Cfg;
+
 
 class App
 {
