@@ -104,8 +104,6 @@ private:
 
 	std::string themeName;	///< Name of the theme in use
 	std::string mcookie;	///< Randomly generated X auth cookie
-
-	const int mcookiesize;
 };
 
 #endif /* _APP_H_ */
