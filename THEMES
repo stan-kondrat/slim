@@ -88,9 +88,9 @@ OPTIONS
     
     # Optional message to show on a failed login. Similar set of values
     # to the above. Use -1 for the x & y to disable (default).
-    password_feedback_x     50%
-    password_feedback_y     165
-    password_feedback_msg	Authentication failed
+    passwd_feedback_x     50%
+    passwd_feedback_y     165
+    passwd_feedback_msg	Authentication failed
     # The font and color are inherited from msg_xxx
     ----------------------------------------------------------------------
 
