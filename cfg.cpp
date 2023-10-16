@@ -212,6 +212,13 @@ bool Cfg::parseOption ( string line )
 	}
 	name = line.substr ( 0, pos );
 	value = Trim ( line.substr ( pos ) );
+	// In case of in-line comments:  value = 'strings # comment'.  
+	// Find '#' past the 1st character (colour), then cut and trim again.
+	pos = value.find_first_of ( '#', 1 );      
+	if ( pos > 0 && pos < string::npos )
+	{ 
+		value = Trim ( value.substr( 0, pos ) ); 
+	}
 	if ( value.empty() )
 	{
 		error = "Badly formed line: " + line;
