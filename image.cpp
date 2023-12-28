@@ -571,6 +571,10 @@ void Image::computeShift(unsigned long mask,
 			mask >>= 1;
 		}
 	}
+	if (right_shift > 128) {
+		left_shift += 255 - right_shift + 1;
+		right_shift = 0;
+	}
 }
 
 
@@ -599,6 +603,10 @@ Pixmap Image::createPixmap(Display* dpy, int scr, Window win)
 		break;
 	default:
 		break;
+	}
+
+	if (!pixmap_data && depth > 24) {
+		pixmap_data = new char[4 * width * height];
 	}
 
 	XImage *ximage = XCreateImage(dpy, visual, depth, ZPixmap, 0,
