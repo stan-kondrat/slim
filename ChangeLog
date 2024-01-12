@@ -1,3 +1,19 @@
+1.4.1 - 2024.01.12
+    * Adjusted how/when the pseudo-root window is created and removed, in
+      preparation for handling multiple monitors in SLiM
+    * Adjusted slimlock to use the panel class in the way it was designed
+      to be used.
+    * Current version of SLiM fixed by allocating bimap always. 
+    * Find '#' character
+    * That passwd_feedback wrong
+    * Changed the App::mcookiesize const member variable to a #define
+    * Reinstate install of systemd service file - required by Debian
+    * Note an expired passwords bug in the man page
+    * Ticket #3 : Use xinerama to pick a viewport (single monitor) for DM mode
+      too
+    * Fixed an annoying developer warning from cmake.
+    * Updated systemd service file to fix some debian / lintian messages.
+
 1.4.0 - 2023.01.21
 	* - BREAKING CONFIG CHANGE - the position of the passwd_feedback in slim
 	  is now relative to the screen, not the panel. This is now consistent 
