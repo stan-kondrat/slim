@@ -15,6 +15,14 @@
 
 #include <fstream>
 
+// some of your ostream  -  bugs gentoo 904366
+#ifdef USE_CONSOLEKIT
+#include "Ck.h"
+#endif
+#ifdef USE_PAM
+#include "PAM.h"
+#endif
+
 using namespace std;
 
 class LogUnit
