@@ -1,34 +1,49 @@
-/* SLiM - Simple Login Manager
-   Copyright (C) 1997, 1998 Per Liden
-   Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
-   Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-*/
+/*
+ * SLiM - Simple Login Manager
+ *  Copyright (C) 1997, 1998 Per Liden
+ *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
+ *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
+ *  Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ */
 
 #include <sstream>
 #include <poll.h>
+#include <libgen.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/Xatom.h>		// for XA_PIXMAP
+#include <unistd.h>			// for sleep
+#include <iostream>			// for cerr
+#include "const.h"
+#include "image.h"
+#include "log.h"
+#include "cfg.h"
+#include "switchuser.h"
 #include "panel.h"
 
 using namespace std;
 
 Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
-			 const string& themedir, PanelType panel_mode) {
-	/* Set display */
-	Dpy = dpy;
-	Scr = scr;
-	Root = root;
-	cfg = config;
-	mode = panel_mode;
-
-	session_name = "";
-    session_exec = "";
-	if (mode == Mode_Lock) {
-		Win = root;
+			 const string& themedir, PanelType panel_mode)
+	: cfg(config), mode(panel_mode), Dpy(dpy), Scr(scr), Win(0),
+	  Root(root), RealRoot(root), session_name(""), session_exec("")
+{
+	if ( mode == Mode_Test )
+	{
+		XWindowAttributes attributes;
+		XGetWindowAttributes(Dpy, Root, &attributes);
+		viewport.x      = 0;	// Not actually used. The window's position
+		viewport.y      = 0;	// is irrelevant to our drawing functions
+		viewport.width  = attributes.width;
+		viewport.height = attributes.height;
+	}
+	else
+	{
+		// Systems with multiple monitors need us to pick one
 		viewport = GetPrimaryViewport();
 	}
 
@@ -39,25 +54,14 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	gcv.foreground = GetColor("black");
 	gcv.background = GetColor("white");
 	gcv.graphics_exposures = False;
-	if (mode == Mode_Lock)
-		TextGC = XCreateGC(Dpy, Win, gcm, &gcv);
-	else
-		TextGC = XCreateGC(Dpy, Root, gcm, &gcv);
 
-	if (mode == Mode_Lock) {
-		gcm = GCGraphicsExposures;
-		gcv.graphics_exposures = False;
-		WinGC = XCreateGC(Dpy, Win, gcm, &gcv);
-		if (WinGC < 0) {
-			cerr << APPNAME
-				<< ": failed to create pixmap\n.";
-			exit(ERR_EXIT);
-		}
-	}
+	TextGC = XCreateGC(Dpy, RealRoot, gcm, &gcv);
+
+	// Intern _XROOTPMAP_ID property  -  does this belong here?
+	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
 
 	font = XftFontOpenName(Dpy, Scr, cfg->getOption("input_font").c_str());
 	welcomefont = XftFontOpenName(Dpy, Scr, cfg->getOption("welcome_font").c_str());
-	introfont = XftFontOpenName(Dpy, Scr, cfg->getOption("intro_font").c_str());
 	enterfont = XftFontOpenName(Dpy, Scr, cfg->getOption("username_font").c_str());
 	msgfont = XftFontOpenName(Dpy, Scr, cfg->getOption("msg_font").c_str());
 
@@ -72,7 +76,6 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("username_shadow_color").c_str(), &entershadowcolor);
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("msg_color").c_str(), &msgcolor);
 	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("msg_shadow_color").c_str(), &msgshadowcolor);
-	XftColorAllocName(Dpy, visual, colormap, cfg->getOption("intro_color").c_str(), &introcolor);
 	XftColorAllocName(Dpy, visual, colormap,
 					  cfg->getOption("session_color").c_str(), &sessioncolor);
 	XftColorAllocName(Dpy, visual, colormap,
@@ -108,14 +111,14 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		}
 	}
 
-	Image* bg = new Image();
+	bgImg = new Image();
 	string bgstyle = cfg->getOption("background_style");
 	if (bgstyle != "color") {
 		panelpng = themedir +"/background.png";
-		loaded = bg->Read(panelpng.c_str());
+		loaded = bgImg->Read(panelpng.c_str());
 		if (!loaded) { /* try jpeg if png failed */
 			panelpng = themedir + "/background.jpg";
-			loaded = bg->Read(panelpng.c_str());
+			loaded = bgImg->Read(panelpng.c_str());
 			if (!loaded){
 				logStream << APPNAME
 					 << ": could not load background image for theme '"
@@ -126,87 +129,50 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 		}
 	}
 
-	if (mode == Mode_Lock) {
-		if (bgstyle == "stretch")
-			bg->Resize(viewport.width, viewport.height);
-			//bg->Resize(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-			//			XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		else if (bgstyle == "tile")
-			bg->Tile(viewport.width, viewport.height);
-		else if (bgstyle == "center") {
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		} else { // plain color or error
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(viewport.width,
-				viewport.height,
-				hexvalue.c_str());
-		}
-	} else {
-		if (bgstyle == "stretch") {
-			bg->Resize(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		} else if (bgstyle == "tile") {
-			bg->Tile(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-						XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)));
-		} else if (bgstyle == "center") {
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-					XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-					hexvalue.c_str());
-		} else { /* plain color or error */
-			string hexvalue = cfg->getOption("background_color");
-			hexvalue = hexvalue.substr(1,6);
-			bg->Center(XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)),
-				   XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)),
-				   hexvalue.c_str());
-		}
+	if (bgstyle == "stretch")
+		bgImg->Resize(viewport.width, viewport.height);
+	else if (bgstyle == "tile")
+		bgImg->Tile(viewport.width, viewport.height);
+	else if (bgstyle == "center") {
+		string hexvalue = cfg->getOption("background_color");
+		hexvalue = hexvalue.substr(1,6);
+		bgImg->Center(viewport.width,
+			viewport.height,
+			hexvalue.c_str());
+	} else { // plain color or error
+		string hexvalue = cfg->getOption("background_color");
+		hexvalue = hexvalue.substr(1,6);
+		bgImg->Center(viewport.width,
+			viewport.height,
+			hexvalue.c_str());
 	}
 
 	string cfgX = cfg->getOption("input_panel_x");
 	string cfgY = cfg->getOption("input_panel_y");
 
-	if (mode == Mode_Lock) {
-		X = Cfg::absolutepos(cfgX, viewport.width, image->Width());
-		Y = Cfg::absolutepos(cfgY, viewport.height, image->Height());
+	X = Cfg::absolutepos(cfgX, viewport.width, image->Width());
+	Y = Cfg::absolutepos(cfgY, viewport.height, image->Height());
 
-		input_name_x += X;
-		input_name_y += Y;
-		input_pass_x += X;
-		input_pass_y += Y;
-	} else {
-		X = Cfg::absolutepos(cfgX, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), image->Width());
-		Y = Cfg::absolutepos(cfgY, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), image->Height());
-	}
+	/* Merge image with cropped background, so that PanelPixmap is the
+	 * panel with the relevant part of the X root image included instead
+	 * of the alpha channel */
+	image->Merge(bgImg, X, Y);
 
-	if (mode == Mode_Lock) {
-		/* Merge image into background without crop */
-		image->Merge_non_crop(bg, X, Y);
-		PanelPixmap = image->createPixmap(Dpy, Scr, Win);
-	} else {
-		/* Merge image into background */
-		image->Merge(bg, X, Y);
-		PanelPixmap = image->createPixmap(Dpy, Scr, Root);
-	}
-	delete bg;
+	PanelPixmap = image->createPixmap(Dpy, Scr, RealRoot);
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
-	intro_message = cfg->getOption("intro_msg");
 
-	if (mode == Mode_Lock) {
+	if (mode == Mode_Lock)
+	{
 		SetName(getenv("USER"));
 		field = Get_Passwd;
-		OnExpose();
 	}
+	MsgExtents.width = 0;
 }
 
-Panel::~Panel() {
+Panel::~Panel()
+{
 	Visual* visual = DefaultVisual(Dpy, Scr);
 	Colormap colormap = DefaultColormap(Dpy, Scr);
 
@@ -218,24 +184,67 @@ Panel::~Panel() {
 	XftColorFree(Dpy, visual, colormap, &entershadowcolor);
 	XftColorFree(Dpy, visual, colormap, &msgcolor);
 	XftColorFree(Dpy, visual, colormap, &msgshadowcolor);
-	XftColorFree(Dpy, visual, colormap, &introcolor);
 	XftColorFree(Dpy, visual, colormap, &sessioncolor);
 	XftColorFree(Dpy, visual, colormap, &sessionshadowcolor);
 
 	XFreeGC(Dpy, TextGC);
 	XftFontClose(Dpy, font);
 	XftFontClose(Dpy, msgfont);
-	XftFontClose(Dpy, introfont);
 	XftFontClose(Dpy, welcomefont);
 	XftFontClose(Dpy, enterfont);
 
-	if (mode == Mode_Lock)
-		XFreeGC(Dpy, WinGC);
-
+	delete bgImg;
 	delete image;
 }
 
-void Panel::OpenPanel() {
+
+/**
+ * Set the (previously loaded and adjusted) background image as the window
+ * background for the root window.
+ */
+void Panel::setBackground(void)
+{
+	if ( Root == 0 )
+	{
+		Root = XCreateSimpleWindow ( Dpy, RealRoot, 
+						viewport.x, viewport.y, viewport.width, viewport.height, 0, 0, 0);
+		XMapWindow(Dpy, Root);
+	}
+	Pixmap p = bgImg->createPixmap(Dpy, Scr, Root);
+	XSetWindowBackgroundPixmap(Dpy, Root, p);
+	XChangeProperty(Dpy, Root, BackgroundPixmapId, XA_PIXMAP, 32,
+				PropModeReplace, (unsigned char *)&p, 1);
+
+	XClearWindow(Dpy, Root);
+
+	XFlush(Dpy);
+}
+
+
+/* Hide the cursor */
+void Panel::HideCursor()
+{
+	if (cfg->getOption("hidecursor") == "true")
+	{
+		XColor	black;
+		char	cursordata[1];
+		Pixmap	cursorpixmap;
+		Cursor	cursor;
+		cursordata[0]=0;
+		cursorpixmap = XCreateBitmapFromData(Dpy, RealRoot, cursordata, 1, 1);
+		black.red=0;
+		black.green=0;
+		black.blue=0;
+		cursor = XCreatePixmapCursor(Dpy, cursorpixmap, cursorpixmap, &black, &black, 0, 0);
+		//XFreePixmap(dpy, cursorpixmap);		// man page is confusing as to whether this is right
+		XDefineCursor(Dpy, RealRoot, cursor);
+	}
+}
+
+
+/* Open the login panel. Not used by slimlock */
+void Panel::OpenPanel()
+{
 	/* Create window */
 	Win = XCreateSimpleWindow(Dpy, Root, X, Y,
 							  image->Width(),
@@ -258,27 +267,28 @@ void Panel::OpenPanel() {
 	XFlush(Dpy);
 }
 
-void Panel::ClosePanel() {
+void Panel::ClosePanel()
+{
 	XUngrabKeyboard(Dpy, CurrentTime);
 	XUnmapWindow(Dpy, Win);
 	XDestroyWindow(Dpy, Win);
+	if ( Root != RealRoot )
+	{
+		XUnmapWindow(Dpy, Root);
+		XDestroyWindow(Dpy, Root);
+		Root = 0;
+	}
 	XFlush(Dpy);
 }
 
-void Panel::ClearPanel() {
-	session_name = "";
-    session_exec = "";
-	Reset();
-	XClearWindow(Dpy, Root);
-	XClearWindow(Dpy, Win);
-	Cursor(SHOW);
-	ShowText();
-	XFlush(Dpy);
-}
-
-void Panel::WrongPassword(int timeout) {
+void Panel::WrongPassword(int timeout)
+{
 	string message;
-	XGlyphInfo extents;
+
+	if ( mode != Mode_Lock )
+	{
+		XClearWindow(Dpy, Root);
+	}
 
 #if 0
 	if (CapsLockOn)
@@ -287,48 +297,61 @@ void Panel::WrongPassword(int timeout) {
 #endif
 	message = cfg->getOption("passwd_feedback_msg");
 
-	XftDraw *draw = XftDrawCreate(Dpy, Win,
-		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
-		XftTextExtents8(Dpy, msgfont, reinterpret_cast<const XftChar8*>(message.c_str()),
-		message.length(), &extents);
+	XftDraw *draw = XftDrawCreate ( Dpy, Root,
+		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr) );
+	XftTextExtents8(Dpy, msgfont, reinterpret_cast<const XftChar8*>(message.c_str()),
+		message.length(), &MsgExtents);
 
 	string cfgX = cfg->getOption("passwd_feedback_x");
 	string cfgY = cfg->getOption("passwd_feedback_y");
 	int shadowXOffset = cfg->getIntOption("msg_shadow_xoffset");
 	int shadowYOffset = cfg->getIntOption("msg_shadow_yoffset");
-	int msg_x = Cfg::absolutepos(cfgX, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.width);
-	int msg_y = Cfg::absolutepos(cfgY, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.height);
+	int msg_x = Cfg::absolutepos(cfgX, viewport.width, MsgExtents.width);
+	int msg_y = Cfg::absolutepos(cfgY, viewport.height, MsgExtents.height);
 
-	OnExpose();
-	SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
-		&msgshadowcolor, shadowXOffset, shadowYOffset);
+	MsgExtents.x = msg_x;
+	MsgExtents.y = msg_y - MsgExtents.height;
 
-	if (cfg->getOption("bell") == "1")
-		XBell(Dpy, 100);
+	if ( timeout > 0 )
+	{
+		OnExpose();
+		if ( msg_x >= 0 && msg_y >= 0 )
+			SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
+					&msgshadowcolor, shadowXOffset, shadowYOffset);
 
-	XFlush(Dpy);
-	sleep(timeout);
+		if (cfg->getOption("bell") == "1")
+			XBell(Dpy, 100);
+		XFlush(Dpy);
+		sleep(timeout);
+	}
 	ResetPasswd();
+	if ( mode != Mode_Lock )
+	{
+		if ( cfg->getIntOption("keep_user_on_fail") == 0 )
+		{
+			ResetName();
+		}
+		field = Get_Name;
+	}
 	OnExpose();
 	// The message should stay on the screen even after the password field is
 	// cleared, methinks. I don't like this solution, but it works.
-	SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
-		&msgshadowcolor, shadowXOffset, shadowYOffset);
+	if ( msg_x >= 0 && msg_y >= 0 )
+		SlimDrawString8(draw, &msgcolor, msgfont, msg_x, msg_y, message,
+				&msgshadowcolor, shadowXOffset, shadowYOffset);
 	XSync(Dpy, True);
 	XftDrawDestroy(draw);
 }
 
-void Panel::Message(const string& text) {
+void Panel::Message(const string& text)
+{
 	string cfgX, cfgY;
 	XGlyphInfo extents;
 	XftDraw *draw;
 
-	if (mode == Mode_Lock)
-		draw = XftDrawCreate(Dpy, Win,
-			DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
-	else
-		draw = XftDrawCreate(Dpy, Root,
-			DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
+	// The message positions are screen-relative, not panel-relative
+	draw = XftDrawCreate(Dpy, Root,
+		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
 	XftTextExtents8(Dpy, msgfont,
 		reinterpret_cast<const XftChar8*>(text.c_str()),
@@ -339,13 +362,8 @@ void Panel::Message(const string& text) {
 	int shadowYOffset = cfg->getIntOption("msg_shadow_yoffset");
 	int msg_x, msg_y;
 
-	if (mode == Mode_Lock) {
-		msg_x = Cfg::absolutepos(cfgX, viewport.width, extents.width);
-		msg_y = Cfg::absolutepos(cfgY, viewport.height, extents.height);
-	} else {
-		msg_x = Cfg::absolutepos(cfgX, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.width);
-		msg_y = Cfg::absolutepos(cfgY, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.height);
-	}
+	msg_x = Cfg::absolutepos(cfgX, viewport.width, extents.width);
+	msg_y = Cfg::absolutepos(cfgY, viewport.height, extents.height);
 
 	SlimDrawString8 (draw, &msgcolor, msgfont, msg_x, msg_y,
 					 text,
@@ -355,22 +373,12 @@ void Panel::Message(const string& text) {
 	XftDrawDestroy(draw);
 }
 
-void Panel::Error(const string& text) {
-	ClosePanel();
-	Message(text);
-	sleep(ERROR_DURATION);
-	OpenPanel();
-	ClearPanel();
-}
-
-unsigned long Panel::GetColor(const char* colorname) {
+unsigned long Panel::GetColor(const char* colorname)
+{
 	XColor color;
 	XWindowAttributes attributes;
 
-	if (mode == Mode_Lock)
-		XGetWindowAttributes(Dpy, Win, &attributes);
-	else
-		XGetWindowAttributes(Dpy, Root, &attributes);
+	XGetWindowAttributes(Dpy, Root, &attributes);
 
 	color.pixel = 0;
 
@@ -382,29 +390,27 @@ unsigned long Panel::GetColor(const char* colorname) {
 	return color.pixel;
 }
 
-void Panel::Cursor(int visible) {
+void Panel::TextCursor(int visible)
+{
 	const char* text = NULL;
 	int xx = 0, yy = 0, y2 = 0, cheight = 0;
 	const char* txth = "Wj"; /* used to get cursor height */
 
-	if (mode == Mode_Lock) {
+	// The constructor and other conditionals guarantee that
+	// if (mode == Mode_Lock)	field = Get_Passwd;
+
+	switch(field) {
+		case Get_Passwd:
 			text = HiddenPasswdBuffer.c_str();
 			xx = input_pass_x;
 			yy = input_pass_y;
-	} else {
-		switch(field) {
-			case Get_Passwd:
-				text = HiddenPasswdBuffer.c_str();
-				xx = input_pass_x;
-				yy = input_pass_y;
-				break;
+			break;
 
-			case Get_Name:
-				text = NameBuffer.c_str();
-				xx = input_name_x;
-				yy = input_name_y;
-				break;
-		}
+		case Get_Name:
+			text = NameBuffer.c_str();
+			xx = input_name_x;
+			yy = input_name_y;
+			break;
 	}
 
 	XGlyphInfo extents;
@@ -414,45 +420,43 @@ void Panel::Cursor(int visible) {
 	XftTextExtents8(Dpy, font, (XftChar8*)text, strlen(text), &extents);
 	xx += extents.width;
 
-	if(visible == SHOW) {
-		if (mode == Mode_Lock) {
-			xx += viewport.x;
-			yy += viewport.y;
-			y2 += viewport.y;
-		}
+	if ( visible == SHOW )
+	{
 		XSetForeground(Dpy, TextGC,
 			GetColor(cfg->getOption("input_color").c_str()));
 
 		XDrawLine(Dpy, Win, TextGC,
 				  xx+1, yy-cheight,
 				  xx+1, y2);
-	} else {
-		if (mode == Mode_Lock)
-			ApplyBackground(Rectangle(xx+1, yy-cheight,
-				1, y2-(yy-cheight)+1));
-		else
-			XClearArea(Dpy, Win, xx+1, yy-cheight,
-				1, y2-(yy-cheight)+1, false);
+	}
+	else
+	{
+		XClearArea(Dpy, Win, xx+1, yy-cheight, 1, y2-(yy-cheight)+1, false);
 	}
 }
 
-void Panel::EventHandler(const Panel::FieldType& curfield) {
+void Panel::EventHandler(const Panel::FieldType& curfield)
+{
 	XEvent event;
 	field = curfield;
 	bool loop = true;
 
-	if (mode == Mode_DM)
+	if ( (mode != Mode_Lock) && ( MsgExtents.width == 0 ) && Win )
 		OnExpose();
 
 	struct pollfd x11_pfd = {0};
 	x11_pfd.fd = ConnectionNumber(Dpy);
 	x11_pfd.events = POLLIN;
 
-	while (loop) {
-		if (XPending(Dpy) || poll(&x11_pfd, 1, -1) > 0) {
-			while(XPending(Dpy)) {
+	while (loop)
+	{
+		if (XPending(Dpy) || poll(&x11_pfd, 1, -1) > 0)
+		{
+			while(XPending(Dpy))
+			{
 				XNextEvent(Dpy, &event);
-				switch(event.type) {
+				switch(event.type)
+				{
 					case Expose:
 						OnExpose();
 						break;
@@ -462,20 +466,24 @@ void Panel::EventHandler(const Panel::FieldType& curfield) {
 						break;
 				}
 			}
+			if ( MsgExtents.width > 0 )
+			{
+				XClearArea(Dpy, Root, MsgExtents.x, MsgExtents.y,
+						MsgExtents.width+1, MsgExtents.height+2, false);
+				MsgExtents.width = 0;
+			}
 		}
 	}
 
 	return;
 }
 
-void Panel::OnExpose(void) {
+void Panel::OnExpose(void)
+{
 	XftDraw *draw = XftDrawCreate(Dpy, Win,
 		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
-	if (mode == Mode_Lock)
-		ApplyBackground();
-	else
-		XClearWindow(Dpy, Win);
+	XClearWindow(Dpy, Win);
 
 	if (input_pass_x != input_name_x || input_pass_y != input_name_y){
 		SlimDrawString8 (draw, &inputcolor, font, input_name_x, input_name_y,
@@ -506,20 +514,21 @@ void Panel::OnExpose(void) {
 	}
 
 	XftDrawDestroy (draw);
-	Cursor(SHOW);
+	TextCursor(SHOW);
 	ShowText();
 }
 
-void Panel::EraseLastChar(string &formerString) {
+void Panel::EraseLastChar(std::string &formerString)
+{
 	switch(field) {
-	case GET_NAME:
+	case Get_Name:
 		if (! NameBuffer.empty()) {
 			formerString=NameBuffer;
 			NameBuffer.erase(--NameBuffer.end());
 		}
 		break;
 
-	case GET_PASSWD:
+	case Get_Passwd:
 		if (!PasswdBuffer.empty()) {
 			formerString=HiddenPasswdBuffer;
 			PasswdBuffer.erase(--PasswdBuffer.end());
@@ -529,7 +538,8 @@ void Panel::EraseLastChar(string &formerString) {
 	}
 }
 
-bool Panel::OnKeyPress(XEvent& event) {
+bool Panel::OnKeyPress(XEvent& event)
+{
 	char ascii;
 	KeySym keysym;
 	XComposeStatus compstatus;
@@ -541,43 +551,44 @@ bool Panel::OnKeyPress(XEvent& event) {
 	XLookupString(&event.xkey, &ascii, 1, &keysym, &compstatus);
 	switch(keysym){
 		case XK_F1:
-			SwitchSession();
+			if ( mode != Mode_Lock )	// Can't change session in a screen lock
+				SwitchSession();
 			return true;
 
 		case XK_F11:
 			/* Take a screenshot */
-			system(cfg->getOption("screenshot_cmd").c_str());
+			if ( system(cfg->getOption("screenshot_cmd").c_str()) < 0 )
+				logStream << APPNAME << ": screenshot_cmd failed" << endl;
 			return true;
 
 		case XK_Return:
 		case XK_KP_Enter:
-			if (field==Get_Name){
+			if (field==Get_Name)
+			{
 				/* Don't allow an empty username */
-				if (NameBuffer.empty()) return true;
+				if (NameBuffer.empty())
+					return true;
 
-				if (NameBuffer==CONSOLE_STR){
+				if (NameBuffer==CONSOLE_STR)
 					action = Console;
-				} else if (NameBuffer==HALT_STR){
+				else if (NameBuffer==HALT_STR)
 					action = Halt;
-				} else if (NameBuffer==REBOOT_STR){
+				else if (NameBuffer==REBOOT_STR)
 					action = Reboot;
-				} else if (NameBuffer==SUSPEND_STR){
+				else if (NameBuffer==SUSPEND_STR)
 					action = Suspend;
-				} else if (NameBuffer==EXIT_STR){
+				else if (NameBuffer==EXIT_STR)
 					action = Exit;
-				} else{
-					if (mode == Mode_DM)
-						action = Login;
-					else
-						action = Lock;
-				}
-			};
+				else
+					action = Login;
+			}
 			return false;
+
 		default:
 			break;
-	};
+	}
 
-	Cursor(HIDE);
+	TextCursor(HIDE);
 	switch(keysym){
 		case XK_Delete:
 		case XK_BackSpace:
@@ -586,7 +597,8 @@ bool Panel::OnKeyPress(XEvent& event) {
 
 		case XK_w:
 		case XK_u:
-			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask) {
+			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask)
+			{
 				switch(field) {
 					case Get_Passwd:
 						formerString = HiddenPasswdBuffer;
@@ -600,36 +612,41 @@ bool Panel::OnKeyPress(XEvent& event) {
 				}
 				break;
 			}
+			/* Deliberate fall-through */
 		case XK_h:
-			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask) {
+			if (reinterpret_cast<XKeyEvent&>(event).state & ControlMask)
+			{
 				EraseLastChar(formerString);
 				break;
 			}
 			/* Deliberate fall-through */
-
 		default:
-			if (isprint(ascii) && (keysym < XK_Shift_L || keysym > XK_Hyper_R)){
+			if (isprint(ascii) && (keysym < XK_Shift_L || keysym > XK_Hyper_R))
+			{
 				switch(field) {
-					case GET_NAME:
+					case Get_Name:
 						formerString=NameBuffer;
-						if (NameBuffer.length() < INPUT_MAXLENGTH_NAME-1){
+						if (NameBuffer.length() < INPUT_MAXLENGTH_NAME-1)
+						{
 							NameBuffer.append(&ascii,1);
-						};
+						}
 						break;
-					case GET_PASSWD:
+					case Get_Passwd:
 						formerString=HiddenPasswdBuffer;
-						if (PasswdBuffer.length() < INPUT_MAXLENGTH_PASSWD-1){
+						if (PasswdBuffer.length() < INPUT_MAXLENGTH_PASSWD-1)
+						{
 							PasswdBuffer.append(&ascii,1);
 							HiddenPasswdBuffer.append("*");
-						};
+						}
 					break;
-				};
+				}
 			}
-			else {
+			else
+			{	// *RP* I think this is to fix the fake bolding if the user presses TAB
 				return true; //nodraw if notchange
-			};
+			}
 			break;
-	};
+	}
 
 	XGlyphInfo extents;
 	XftDraw *draw = XftDrawCreate(Dpy, Win,
@@ -649,7 +666,8 @@ bool Panel::OnKeyPress(XEvent& event) {
 			break;
 	}
 
-	if (!formerString.empty()){
+	if (!formerString.empty())
+	{
 		const char* txth = "Wj"; /* get proper maximum height ? */
 		XftTextExtents8(Dpy, font,
 				reinterpret_cast<const XftChar8*>(txth), strlen(txth), &extents);
@@ -660,16 +678,12 @@ bool Panel::OnKeyPress(XEvent& event) {
 						formerString.length(), &extents);
 		int maxLength = extents.width;
 
-		if (mode == Mode_Lock)
-			ApplyBackground(Rectangle(input_pass_x - 3,
-				input_pass_y - maxHeight - 3,
-				maxLength + 6, maxHeight + 6));
-		else
-			XClearArea(Dpy, Win, xx - 3, yy-maxHeight - 3,
+		XClearArea(Dpy, Win, xx - 3, yy-maxHeight - 3,
 				maxLength + 6, maxHeight + 6, false);
 	}
 
-	if (!text.empty()) {
+	if (!text.empty())
+	{
 		SlimDrawString8 (draw, &inputcolor, font, xx, yy,
 				 text,
 				 &inputshadowcolor,
@@ -677,19 +691,22 @@ bool Panel::OnKeyPress(XEvent& event) {
 	}
 
 	XftDrawDestroy (draw);
-	Cursor(SHOW);
+	TextCursor(SHOW);
 	return true;
 }
 
-/* Draw welcome and "enter username" message */
-void Panel::ShowText(){
+
+/* Draw welcome and "enter username" messages */
+void Panel::ShowText()
+{
 	string cfgX, cfgY;
 	XGlyphInfo extents;
 
-	bool singleInputMode =
-	input_name_x == input_pass_x &&
-	input_name_y == input_pass_y;
+	bool singleInputMode = ( input_name_x == input_pass_x
+			    && input_name_y == input_pass_y );
 
+	/// @bug this draw context is assumed relative to the panel but in lock
+	///		 mode it's actually relative to the background
 	XftDraw *draw = XftDrawCreate(Dpy, Win,
 		  DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 	/* welcome message */
@@ -711,7 +728,7 @@ void Panel::ShowText(){
 
 	/* Enter username-password message */
 	string msg;
-	if ((!singleInputMode|| field == Get_Passwd) && mode == Mode_DM) {
+	if (!singleInputMode|| field == Get_Passwd) {
 		msg = cfg->getOption("password_msg");
 		XftTextExtents8(Dpy, enterfont, (XftChar8*)msg.c_str(),
 						strlen(msg.c_str()), &extents);
@@ -727,7 +744,7 @@ void Panel::ShowText(){
 		}
 	}
 
-	if (!singleInputMode|| field == Get_Name) {
+	if ((!singleInputMode|| field == Get_Name) && mode != Mode_Lock ) {
 		msg = cfg->getOption("username_msg");
 		XftTextExtents8(Dpy, enterfont, (XftChar8*)msg.c_str(),
 						strlen(msg.c_str()), &extents);
@@ -744,32 +761,40 @@ void Panel::ShowText(){
 	}
 	XftDrawDestroy(draw);
 
-	if (mode == Mode_Lock) {
+	if ( singleInputMode && (mode == Mode_Lock) )
+	{
 		// If only the password box is visible, draw the user name somewhere too
-		string user_msg = "User: " + GetName();
 		int show_username = cfg->getIntOption("show_username");
-		if (singleInputMode && show_username) {
+		if (show_username)
+		{
+			string user_msg = "User: " + GetName();
 			Message(user_msg);
 		}
 	}
 }
 
-string Panel::getSession() {
+
+string Panel::getSession()
+{
 	return session_exec;
 }
 
-/* choose next available session type */
-void Panel::SwitchSession() {
-        pair<string,string> ses = cfg->nextSession();
-        session_name = ses.first;
-        session_exec = ses.second;
-        if (session_name.size() > 0) {
-                ShowSession();
-        }
+
+/* choose next available session type. Not used in lock mode */
+void Panel::SwitchSession()
+{
+	pair<string,string> ses = cfg->nextSession();
+	session_name = ses.first;
+	session_exec = ses.second;
+	if (session_name.size() > 0) {
+		ShowSession();
+	}
  }
 
-/* Display session type on the screen */
-void Panel::ShowSession() {
+
+/* Display session type on the screen. Not used in lock mode */
+void Panel::ShowSession()
+{
 	string msg_x, msg_y;
 	XClearWindow(Dpy, Root);
 	string currsession = cfg->getOption("session_msg") + " " + session_name;
@@ -783,8 +808,8 @@ void Panel::ShowSession() {
 					currsession.length(), &extents);
 	msg_x = cfg->getOption("session_x");
 	msg_y = cfg->getOption("session_y");
-	int x = Cfg::absolutepos(msg_x, XWidthOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.width);
-	int y = Cfg::absolutepos(msg_y, XHeightOfScreen(ScreenOfDisplay(Dpy, Scr)), extents.height);
+	int x = Cfg::absolutepos(msg_x, viewport.width, extents.width);
+	int y = Cfg::absolutepos(msg_y, viewport.height, extents.height);
 	int shadowXOffset = cfg->getIntOption("session_shadow_xoffset");
 	int shadowYOffset = cfg->getIntOption("session_shadow_yoffset");
 
@@ -802,63 +827,66 @@ void Panel::SlimDrawString8(XftDraw *d, XftColor *color, XftFont *font,
 							XftColor* shadowColor,
 							int xOffset, int yOffset)
 {
-	int calc_x = 0;
-	int calc_y = 0;
-	if (mode == Mode_Lock) {
-		calc_x = viewport.x;
-		calc_y = viewport.y;
-	}
-
 	if (xOffset && yOffset) {
-		XftDrawStringUtf8(d, shadowColor, font,
-			x + xOffset + calc_x,
-			y + yOffset + calc_y,
-			reinterpret_cast<const FcChar8*>(str.c_str()),
-			str.length());
+		XftDrawStringUtf8(d, shadowColor, font, x+xOffset, y+yOffset,
+			reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
 	}
 
-	XftDrawStringUtf8(d, color, font,
-		x + calc_x,
-		y + calc_y,
-		reinterpret_cast<const FcChar8*>(str.c_str()),
-		str.length());
+	XftDrawStringUtf8(d, color, font, x, y,
+		reinterpret_cast<const FcChar8*>(str.c_str()), str.length());
 }
 
-Panel::ActionType Panel::getAction(void) const{
+
+Panel::ActionType Panel::getAction(void) const
+{
 	return action;
 }
 
-void Panel::Reset(void){
+void Panel::Reset(void)
+{
 	ResetName();
 	ResetPasswd();
 }
 
-void Panel::ResetName(void){
+void Panel::ResetName(void)
+{
 	NameBuffer.clear();
 }
 
-void Panel::ResetPasswd(void){
+void Panel::ResetPasswd(void)
+{
 	PasswdBuffer.clear();
 	HiddenPasswdBuffer.clear();
 }
 
-void Panel::SetName(const string& name){
+
+/* Pre-load the user name input box with the provided string.
+ * Used to set the default user, if so configured, and by slimlock to set the
+ * currently logged-in user.
+ */
+void Panel::SetName(const string& name)
+{
 	NameBuffer=name;
-	if (mode == Mode_DM)
-		action = Login;
-	else
-		action = Lock;
+	action = Login;
 }
 
-const string& Panel::GetName(void) const{
+const string& Panel::GetName(void) const
+{
 	return NameBuffer;
 }
 
-const string& Panel::GetPasswd(void) const{
+const string& Panel::GetPasswd(void) const
+{
 	return PasswdBuffer;
 }
 
-Rectangle Panel::GetPrimaryViewport() {
+
+/**
+ * Identify the viewport (physical screen?) to draw on. This allows slimlock
+ * to handle Xinerama-type multi-monitor setups. Not currently used by slim
+ */
+Rectangle Panel::GetPrimaryViewport()
+{
 	Rectangle fallback;
 	Rectangle result;
 
@@ -874,22 +902,29 @@ Rectangle Panel::GetPrimaryViewport() {
 	fallback.width = DisplayWidth(Dpy, Scr);
 	fallback.height = DisplayHeight(Dpy, Scr);
 
-	primary = XRRGetOutputPrimary(Dpy, Win);
-	if (!primary) {
+	resources = XRRGetScreenResources(Dpy, Root);
+	if (!resources)
+	{
+		cerr << "XRRGetScreenResources failed\n";
 	    return fallback;
 	}
-	resources = XRRGetScreenResources(Dpy, Win);
-	if (!resources)
-	    return fallback;
+
+	primary = XRRGetOutputPrimary(Dpy, Root);
+	if (!primary) {
+	    // No "primary" defined (by the WM, usually) but could still have
+	    // multiple monitors or setups, so default to the first output.
+	    primary = resources->outputs[0];
+	}
 
 	primary_info = XRRGetOutputInfo(Dpy, resources, primary);
 	if (!primary_info) {
+		cerr << "XRRGetOutputInfo failed\n";
 	    XRRFreeScreenResources(resources);
 	    return fallback;
 	}
 
     // Fixes bug with multiple monitors.  Just pick first monitor if 
-    // XRRGetOutputInfo gives returns bad into for crtc.
+    // XRRGetOutputInfo gives returns bad value for crtc.
     if (primary_info->crtc < 1) {
         if (primary_info->ncrtc > 0) {
            crtc = primary_info->crtcs[0];
@@ -904,6 +939,7 @@ Rectangle Panel::GetPrimaryViewport() {
 	crtc_info = XRRGetCrtcInfo(Dpy, resources, crtc);
 
 	if (!crtc_info) {
+		cerr << "XRRGetCrtcInfo failed\n";
 	    XRRFreeOutputInfo(primary_info);
 	    XRRFreeScreenResources(resources);
 	    return fallback;
@@ -918,23 +954,13 @@ Rectangle Panel::GetPrimaryViewport() {
 	XRRFreeOutputInfo(primary_info);
 	XRRFreeScreenResources(resources);
 
+	// As we're only using one monitor, which is only part of the root window,
+	// replace Root with a viewport window
+	Root = XCreateSimpleWindow ( Dpy, RealRoot, 
+					result.x, result.y, result.width, result.height, 0, 0, 0);
+	XMapWindow(Dpy, Root);
+	XFlush(Dpy);
+
 	return result;
 }
 
-void Panel::ApplyBackground(Rectangle rect) {
-	int ret = 0;
-
-	if (rect.is_empty()) {
-	    rect.x = 0;
-	    rect.y = 0;
-	    rect.width = viewport.width;
-	    rect.height = viewport.height;
-	}
-
-	ret = XCopyArea(Dpy, PanelPixmap, Win, WinGC,
-		rect.x, rect.y, rect.width, rect.height,
-		viewport.x + rect.x, viewport.y + rect.y);
-
-	if (!ret)
-	    cerr << APPNAME << ": failed to put pixmap on the screen\n.";
-}

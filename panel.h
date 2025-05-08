@@ -3,6 +3,7 @@
    Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
    Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
    Copyright (C) 2013 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
+   Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,23 +15,19 @@
 #define _PANEL_H_
 
 #include <X11/Xlib.h>
-#include <X11/keysym.h>
 #include <X11/Xft/Xft.h>
-#include <X11/cursorfont.h>
-#include <X11/Xmu/WinUtil.h>
-#include <sys/wait.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <iostream>
 #include <string>
 
 #ifdef NEEDS_BASENAME
 #include <libgen.h>
 #endif
 
-#include "switchuser.h"
-#include "log.h"
-#include "image.h"
+
+// Forward declarations
+class Image;
+class Cfg;
+
 
 struct Rectangle {
 	int x;
@@ -39,19 +36,19 @@ struct Rectangle {
 	unsigned int height;
 
 	Rectangle() : x(0), y(0), width(0), height(0) {};
-	Rectangle(int x, int y, unsigned int width,
-					unsigned int height) :
-		x(x), y(y), width(width), height(height) {};
-	bool is_empty() const {
-		return width == 0 || height == 0;
-	}
+	Rectangle(int x, int y, unsigned int width, unsigned int height)
+		: x(x), y(y), width(width), height(height)
+	{}
+
+	bool is_empty() const { return width == 0 || height == 0; }
 };
 
-class Panel {
+class Panel
+{
 public:
 	enum ActionType {
 		Login,
-		Lock,
+		UnLock = Login,     // slimlock doesn't actually care about this
 		Console,
 		Reboot,
 		Halt,
@@ -66,6 +63,7 @@ public:
 
 	enum PanelType {
 		Mode_DM,
+		Mode_Test,
 		Mode_Lock
 	};
 
@@ -74,10 +72,8 @@ public:
 	~Panel();
 	void OpenPanel();
 	void ClosePanel();
-	void ClearPanel();
 	void WrongPassword(int timeout);
 	void Message(const std::string &text);
-	void Error(const std::string &text);
 	void EventHandler(const FieldType &curfield);
 	std::string getSession();
 	ActionType getAction(void) const;
@@ -89,12 +85,17 @@ public:
 	const std::string& GetName(void) const;
 	const std::string& GetPasswd(void) const;
 	void SwitchSession();
+
+	Atom BackgroundPixmapId;	// from XInternAtom -- does it need to be a member var?
+	void setBackground(void);
+	void HideCursor();
+
 private:
 	Panel();
-	void Cursor(int visible);
+	void TextCursor(int visible);
 	unsigned long GetColor(const char *colorname);
 	void OnExpose(void);
-	void EraseLastChar(string &formerString);
+	void EraseLastChar(std::string &formerString);
 	bool OnKeyPress(XEvent& event);
 	void ShowText();
 	void ShowSession();
@@ -105,26 +106,23 @@ private:
 							int xOffset, int yOffset);
 
 	Rectangle GetPrimaryViewport();
-	void ApplyBackground(Rectangle = Rectangle());
 
 	/* Private data */
-	PanelType mode; /* work mode */
 	Cfg *cfg;
-	Window Win;
-	Window Root;
+	PanelType mode; /* work mode */
 	Display *Dpy;
 	int Scr;
+	Window Win;
+	Window Root;
+	Window RealRoot;
 	int X, Y;
 	GC TextGC;
-	GC WinGC;
 	XftFont *font;
 	XftColor inputshadowcolor;
 	XftColor inputcolor;
 	XftColor msgcolor;
 	XftColor msgshadowcolor;
 	XftFont *msgfont;
-	XftColor introcolor;
-	XftFont *introfont;
 	XftFont *welcomefont;
 	XftColor welcomecolor;
 	XftFont *sessionfont;
@@ -136,7 +134,7 @@ private:
 	XftColor entershadowcolor;
 	ActionType action;
 	FieldType field;
-	//Pixmap   background;
+	XGlyphInfo MsgExtents;
 	
 	/* Username/Password */
 	std::string NameBuffer;
@@ -153,15 +151,12 @@ private:
 	int input_pass_y;
 	int inputShadowXOffset;
 	int inputShadowYOffset;
-	int input_cursor_height;
 	int welcome_x;
 	int welcome_y;
 	int welcome_shadow_xoffset;
 	int welcome_shadow_yoffset;
 	int session_shadow_xoffset;
 	int session_shadow_yoffset;
-	int intro_x;
-	int intro_y;
 	int username_x;
 	int username_y;
 	int username_shadow_xoffset;
@@ -169,15 +164,13 @@ private:
 	int password_x;
 	int password_y;
 	std::string welcome_message;
-	std::string intro_message;
 
 	/* Pixmap data */
 	Pixmap PanelPixmap;
 
 	Image *image;
+	Image *bgImg;
 
-	/* For thesting themes */
-	bool testing;
 	std::string themedir;
 
 	/* Session handling */

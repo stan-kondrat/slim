@@ -1,5 +1,6 @@
 /* SLiM - Simple Login Manager
  * Copyright (C) 2007 Martin Parm
+ * Copyright (C) 2022-2023 Rob Pearce <slim@flitspace.org.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,26 +12,28 @@
 #include <iostream>
 #include "PAM.h"
 
-namespace PAM {
+namespace PAM
+{
 	Exception::Exception(pam_handle_t* _pam_handle,
 					const std::string& _func_name,
-					int _errnum):
-		errnum(_errnum),
-		errstr(pam_strerror(_pam_handle, _errnum)),
-		func_name(_func_name)
-		{}
+					int _errnum)
+		: errnum(_errnum), errstr(pam_strerror(_pam_handle, _errnum)),
+		  func_name(_func_name)
+	{}
 
 	Exception::~Exception(void) {}
 
 	Auth_Exception::Auth_Exception(pam_handle_t* _pam_handle,
 					const std::string& _func_name,
-					int _errnum):
-		Exception(_pam_handle, _func_name, _errnum) {}
+					int _errnum)
+		: Exception(_pam_handle, _func_name, _errnum)
+	{}
 
 	Cred_Exception::Cred_Exception(pam_handle_t* _pam_handle,
 					const std::string& _func_name,
-					int _errnum):
-		Exception(_pam_handle, _func_name, _errnum) {}
+					int _errnum)
+		: Exception(_pam_handle, _func_name, _errnum)
+	{}
 
 	int Authenticator::_end (void)
 	{
@@ -39,9 +42,8 @@ namespace PAM {
 		return result;
 	}
 
-	Authenticator::Authenticator(conversation* conv, void* data):
-		pam_handle(0),
-		last_result(PAM_SUCCESS)
+	Authenticator::Authenticator(conversation* conv, void* data)
+		: pam_handle(0), last_result(PAM_SUCCESS)
 	{
 		pam_conversation.conv=conv;
 		pam_conversation.appdata_ptr=data;
@@ -55,7 +57,10 @@ namespace PAM {
 
 	void Authenticator::start(const std::string& service)
 	{
-		switch ((last_result=pam_start(service.c_str(), NULL, &pam_conversation, &pam_handle))) {
+		last_result = pam_start ( service.c_str(), NULL,
+								  &pam_conversation, &pam_handle);
+		switch ( last_result )
+		{
 			default:
 				throw Exception(pam_handle, "pam_start()", last_result);
 
@@ -67,7 +72,8 @@ namespace PAM {
 
 	void Authenticator::end(void)
 	{
-		switch ((last_result=_end())) {
+		switch ((last_result=_end()))
+		{
 			default:
 				throw Exception(pam_handle, "pam_end()", last_result);
 
@@ -79,7 +85,8 @@ namespace PAM {
 
 	void Authenticator::set_item(const Authenticator::ItemType item, const void* value)
 	{
-		switch ((last_result=pam_set_item(pam_handle, item, value))) {
+		switch ((last_result=pam_set_item(pam_handle, item, value)))
+		{
 			default:
 			_end();
 				throw Exception(pam_handle, "pam_set_item()", last_result);
@@ -93,7 +100,8 @@ namespace PAM {
 	const void* Authenticator::get_item(const Authenticator::ItemType item)
 	{
 		const void* data;
-		switch ((last_result=pam_get_item(pam_handle, item, &data))) {
+		switch ((last_result=pam_get_item(pam_handle, item, &data)))
+		{
 			default:
 			case PAM_SYSTEM_ERR:
 #ifdef __LIBPAM_VERSION
@@ -112,7 +120,8 @@ namespace PAM {
 #ifdef __LIBPAM_VERSION
 	void Authenticator::fail_delay(const unsigned int micro_sec)
 	{
-		switch ((last_result=pam_fail_delay(pam_handle, micro_sec))) {
+		switch ((last_result=pam_fail_delay(pam_handle, micro_sec)))
+		{
 			default:
 				_end();
 				throw Exception(pam_handle, "fail_delay()", last_result);
@@ -126,16 +135,19 @@ namespace PAM {
 
 	void Authenticator::authenticate(void)
 	{
-		switch ((last_result=pam_authenticate(pam_handle, 0))) {
+		switch ((last_result=pam_authenticate(pam_handle, 0)))
+		{
 			default:
 			case PAM_ABORT:
 			case PAM_AUTHINFO_UNAVAIL:
-				_end();
-				throw Exception(pam_handle, "pam_authenticate()", last_result);
+//				_end();
+//				throw Exception(pam_handle, "pam_authenticate()", last_result);
 
 			case PAM_USER_UNKNOWN:
 			case PAM_MAXTRIES:
 			case PAM_CRED_INSUFFICIENT:
+			case PAM_ACCT_EXPIRED:
+			case PAM_PERM_DENIED:
 			case PAM_AUTH_ERR:
 				throw Auth_Exception(pam_handle, "pam_authentication()", last_result);
 
@@ -143,19 +155,12 @@ namespace PAM {
 				break;
 		}
 
-		switch ((last_result=pam_acct_mgmt(pam_handle, PAM_SILENT))) {
-			/* The documentation and implementation of Linux PAM differs:
-			   PAM_NEW_AUTHTOKEN_REQD is described in the documentation but
-			   don't exists in the actual implementation. This issue needs
-			   to be fixes at some point. */
-
+		switch ((last_result=pam_acct_mgmt(pam_handle, PAM_SILENT)))
+		{
 			default:
-			/* case PAM_NEW_AUTHTOKEN_REQD: */
+			case PAM_NEW_AUTHTOK_REQD:
 			case PAM_ACCT_EXPIRED:
 			case PAM_USER_UNKNOWN:
-				_end();
-				throw Exception(pam_handle, "pam_acct_mgmt()", last_result);
-
 			case PAM_AUTH_ERR:
 			case PAM_PERM_DENIED:
 				throw Auth_Exception(pam_handle, "pam_acct_mgmt()", last_result);
@@ -166,15 +171,35 @@ namespace PAM {
 		return;
 	}
 
+	void Authenticator::check_acct(void)
+	{
+		switch((last_result=pam_acct_mgmt(pam_handle, PAM_SILENT)))
+		{
+			case PAM_ACCT_EXPIRED:
+			case PAM_USER_UNKNOWN:
+			case PAM_PERM_DENIED:
+				throw Auth_Exception(pam_handle, "pam_acct_mgmt()", last_result);
+ 
+	     	default:
+			case PAM_NEW_AUTHTOK_REQD:
+			case PAM_AUTH_ERR:
+			case PAM_SUCCESS:
+		 	break;
+	 	}
+	}
+ 
 	void Authenticator::open_session(void)
 	{
-		switch ((last_result=pam_setcred(pam_handle, PAM_ESTABLISH_CRED))) {
+		switch ((last_result=pam_setcred(pam_handle, PAM_ESTABLISH_CRED)))
+		{
 			default:
 			case PAM_CRED_ERR:
 			case PAM_CRED_UNAVAIL:
 				_end();
 				throw Exception(pam_handle, "pam_setcred()", last_result);
 
+			case PAM_ACCT_EXPIRED:
+			case PAM_PERM_DENIED:
 			case PAM_CRED_EXPIRED:
 			case PAM_USER_UNKNOWN:
 				throw Cred_Exception(pam_handle, "pam_setcred()", last_result);
@@ -183,7 +208,8 @@ namespace PAM {
 				break;
 		}
 
-		switch ((last_result=pam_open_session(pam_handle, 0))) {
+		switch ((last_result=pam_open_session(pam_handle, 0)))
+		{
 			/* The documentation and implementation of Linux PAM differs:
 			   PAM_SESSION_ERROR is described in the documentation but
 			   don't exists in the actual implementation. This issue needs
@@ -203,7 +229,8 @@ namespace PAM {
 
 	void Authenticator::close_session(void)
 	{
-		switch ((last_result=pam_close_session(pam_handle, 0))) {
+		switch ((last_result=pam_close_session(pam_handle, 0)))
+		{
 			/* The documentation and implementation of Linux PAM differs:
 			   PAM_SESSION_ERROR is described in the documentation but
 			   don't exists in the actual implementation. This issue needs
@@ -218,7 +245,8 @@ namespace PAM {
 			case PAM_SUCCESS:
 				break;
 		}
-		switch ((last_result=pam_setcred(pam_handle, PAM_DELETE_CRED))) {
+		switch ((last_result=pam_setcred(pam_handle, PAM_DELETE_CRED)))
+		{
 			default:
 			case PAM_CRED_ERR:
 			case PAM_CRED_UNAVAIL:
@@ -236,7 +264,8 @@ namespace PAM {
 	void Authenticator::setenv(const std::string& key, const std::string& value)
 	{
 		std::string name_value = key+"="+value;
-		switch ((last_result = pam_putenv(pam_handle, name_value.c_str()))) {
+		switch ((last_result = pam_putenv(pam_handle, name_value.c_str())))
+		{
 			default:
 			case PAM_PERM_DENIED:
 			case PAM_ABORT:
@@ -255,7 +284,8 @@ namespace PAM {
 
 	void Authenticator::delenv(const std::string& key)
 	{
-		switch ((last_result = pam_putenv(pam_handle, key.c_str()))) {
+		switch ((last_result = pam_putenv(pam_handle, key.c_str())))
+		{
 			default: 
 			case PAM_PERM_DENIED:
 			case PAM_ABORT:

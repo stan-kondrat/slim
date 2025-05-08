@@ -2,6 +2,7 @@
  *  Copyright (C) 1997, 1998 Per Liden
  *  Copyright (C) 2004-06 Simone Rota <sip@varlock.com>
  *  Copyright (C) 2004-06 Johannes Winkelmann <jw@tks6.net>
+ *  Copyright (C) 2022-23 Rob Pearce <slim@flitspace.org.uk>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,17 +14,6 @@
 #define _APP_H_
 
 #include <X11/Xlib.h>
-#include <X11/Xatom.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <setjmp.h>
-#include <stdlib.h>
-#include <iostream>
-#include "panel.h"
-#include "cfg.h"
-#include "image.h"
 
 #ifdef USE_PAM
 #include "PAM.h"
@@ -32,7 +22,13 @@
 #include "Ck.h"
 #endif
 
-class App {
+// Forward declarations
+class Panel;
+class Cfg;
+
+
+class App
+{
 public:
 	App(int argc, char **argv);
 	~App();
@@ -58,14 +54,12 @@ private:
 	void ReadConfig();
 	void OpenLog();
 	void CloseLog();
-	void HideCursor();
 	void CreateServerAuth();
 	char *StrConcat(const char *str1, const char *str2);
 	void UpdatePid();
 
 	bool AuthenticateUser(bool focuspass);
 
-	static std::string findValidRandomTheme(const std::string &set);
 	static void replaceVariables(std::string &input,
 								 const std::string &var,
 								 const std::string &value);
@@ -76,44 +70,40 @@ private:
 	int WaitForServer();
 
 	/* Private data */
-	Window Root;
-	Display *Dpy;
-	int Scr;
-	Panel *LoginPanel;
-	int ServerPID;
-	const char *DisplayName;
-	bool serverStarted;
+	Window Root;	///< The root window of the default screen, on which to draw
+	Display *Dpy;	///< Connection to the X-server
+	int Scr;		///< Which "screen" to use (which will be the default one)
+	Panel *LoginPanel;	///< The panel we display and interact through
+	int ServerPID;	///< Process ID of the X-server we launched
+	const char *DisplayName;	///< The display to request, usually ":0.0"
+	bool serverStarted;	///< Whether we (think we) have started an X server
 
 #ifdef USE_PAM
-	PAM::Authenticator pam;
+	PAM::Authenticator pam;	///< Interface to the PAM authentication library
 #endif
 #ifdef USE_CONSOLEKIT
-	Ck::Session ck;
+	Ck::Session ck;		///< Interface to ConsoleKit, if used
 #endif
 
 	/* Options */
-	char *DispName;
-
-	Cfg *cfg;
-
-	Pixmap BackgroundPixmap;
+	Cfg *cfg;		///< Collection of options from the configuration file
 
 	void blankScreen();
-	Image *image;
-	Atom BackgroundPixmapId;
-	void setBackground(const std::string &themedir);
 
-	bool firstlogin;
-	bool daemonmode;
-	bool force_nodaemon;
+	bool firstlogin;	///< Whether to exhibit first login behaviour, or repeat
+	bool daemonmode;	///< Are we running as a daemon?
+	bool force_nodaemon;	///< Are we forced NOT to be a daemon?
 	/* For testing themes */
-	char *testtheme;
-	bool testing;
+	char *testtheme;	///< Name of the theme to test, from command line
+	bool testing;		///< Whether we're running in theme testing mode
+	short tww, twh;		///< The user's requested test window size
 
-	std::string themeName;
-	std::string mcookie;
+#ifdef USE_CONSOLEKIT
+	bool consolekit_support_enabled;	///< Whether to use ConsoleKit (not compatible with systemd)
+#endif
 
-	const int mcookiesize;
+	std::string themeName;	///< Name of the theme in use
+	std::string mcookie;	///< Randomly generated X auth cookie
 };
 
 #endif /* _APP_H_ */
