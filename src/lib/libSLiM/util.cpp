@@ -15,7 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "util.h"
+#include "lib/libSLiM/util.h"
 
 /*
  * Adds the given cookie to the specified Xauthority file.

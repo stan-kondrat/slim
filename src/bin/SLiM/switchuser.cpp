@@ -15,11 +15,12 @@
 #include <cstdio>
 #include <iostream>
 #include <grp.h>
-#include "const.h"
-#include "cfg.h"
-#include "log.h"
-#include "util.h"
-#include "switchuser.h"
+
+#include "include/const.h"
+#include "lib/libSLiM/cfg.h"
+#include "lib/libSLiM/log.h"
+#include "lib/libSLiM/util.h"
+#include "bin/SLiM/switchuser.h"
 
 using namespace std;
 

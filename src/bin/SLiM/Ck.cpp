@@ -15,7 +15,7 @@
 #include <X11/Xatom.h>
 #include <stdarg.h>
 
-#include "Ck.h"
+#include "bin/SLiM/Ck.h"
 
 namespace Ck
 {

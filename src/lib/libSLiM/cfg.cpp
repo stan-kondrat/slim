@@ -21,10 +21,10 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-#include "util.h"	// for Util::random
-#include "log.h"	// for logStream
+#include "lib/libSLiM/util.h"	// for Util::random
+#include "lib/libSLiM/log.h"	// for logStream
 
-#include "cfg.h"
+#include "lib/libSLiM/cfg.h"
 
 using namespace std;
 

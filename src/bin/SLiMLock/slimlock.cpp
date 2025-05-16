@@ -26,10 +26,10 @@
 #include <sys/file.h>
 #include <errno.h>
 
-#include "cfg.h"
-#include "util.h"
-#include "panel.h"
-#include "const.h"
+#include "include/const.h"
+#include "lib/libSLiM/cfg.h"
+#include "lib/libSLiM/util.h"
+#include "lib/libSLiM/panel.h"
 
 #undef APPNAME
 #define APPNAME "slimlock"

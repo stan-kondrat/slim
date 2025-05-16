@@ -41,27 +41,38 @@ set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DVERSION=\"${SLIM_VERSION}\"")
 set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DPKGDATADIR=\"${PKGDATADIR}\"")
 set(SLIM_DEFINITIONS ${SLIM_DEFINITIONS} "-DSYSCONFDIR=\"${SYSCONFDIR}\"")
 
+include_directories("${CMAKE_SOURCE_DIR}/src")
+
+set(SLiM_path "${CMAKE_SOURCE_DIR}/src/bin/SLiM")
+set(SLiMLock_path "${CMAKE_SOURCE_DIR}/src/bin/SLiMLock")
+set(libSLiM_path "${CMAKE_SOURCE_DIR}/src/lib/libSLiM")
+
 # source 
 set(slim_srcs
-	main.cpp
-	app.cpp
-	numlock.cpp
-	switchuser.cpp
+	${SLiM_path}/main.cpp
+	${SLiM_path}/app.cpp
+	${SLiM_path}/numlock.cpp
+	${SLiM_path}/switchuser.cpp
 )
 
+if(USE_CONSOLEKIT)
+	set(slim_srcs ${slim_srcs} ${SLiM_path}/Ck.cpp)
+endif(USE_CONSOLEKIT)
+
 set(slimlock_srcs
-	slimlock.cpp
+	${SLiMLock_path}/slimlock.cpp
 )
 
 set(common_srcs
-    cfg.cpp
-    image.cpp
-    log.cpp
-    panel.cpp
-    util.cpp
+	${libSLiM_path}/cfg.cpp
+	${libSLiM_path}/image.cpp
+	${libSLiM_path}/log.cpp
+	${libSLiM_path}/panel.cpp
+	${libSLiM_path}/util.cpp
 )
+
 if(USE_PAM)
-	set(common_srcs ${common_srcs} PAM.cpp)
+	set(common_srcs ${common_srcs} ${libSLiM_path}/PAM.cpp)
     # used to always build slimlock if we are using PAM. Removed as per Devuan
     # set(BUILD_SLIMLOCK 1)
 endif(USE_PAM)
@@ -76,10 +87,6 @@ else(BUILD_SHARED_LIBS)
 	message(STATUS "Disable shared library building")
 	add_library(libslim STATIC ${common_srcs})
 endif(BUILD_SHARED_LIBS)
-
-if(USE_CONSOLEKIT)
-	set(slim_srcs ${slim_srcs} Ck.cpp)
-endif(USE_CONSOLEKIT)
 
 add_executable(slim ${slim_srcs})
 if(BUILD_SLIMLOCK)
@@ -230,22 +237,10 @@ if (BUILD_SHARED_LIBS)
 	)
 endif (BUILD_SHARED_LIBS)
 
-# man file
-install(FILES slim.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
-
-# configure - in theory we should use CMAKE_INSTALL_SYSCONFDIR but that doesn't work
-install(FILES slim.conf DESTINATION ${SYSCONFDIR})
-
-# systemd service file - condition is wrong - not all Linux uses systemd!
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	install(FILES slim.service DESTINATION ${SYSTEMDDIR}/system)
-endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-
 #slimlock
 if(BUILD_SLIMLOCK)
 	install(TARGETS slimlock RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE SETUID)
-	install(FILES slimlock.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 endif(BUILD_SLIMLOCK)
 
-# themes directory
-subdirs(themes)
+add_subdirectory(data)
+add_subdirectory(doc)

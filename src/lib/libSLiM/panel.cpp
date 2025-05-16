@@ -18,12 +18,13 @@
 #include <X11/Xatom.h>		// for XA_PIXMAP
 #include <unistd.h>			// for sleep
 #include <iostream>			// for cerr
-#include "const.h"
-#include "image.h"
-#include "log.h"
-#include "cfg.h"
-#include "switchuser.h"
-#include "panel.h"
+
+#include "include/const.h"
+#include "lib/libSLiM/image.h"
+#include "lib/libSLiM/log.h"
+#include "lib/libSLiM/cfg.h"
+#include "lib/libSLiM/panel.h"
+#include "bin/SLiM/switchuser.h"
 
 using namespace std;
 

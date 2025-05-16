@@ -17,10 +17,10 @@
 
 // some of your ostream  -  bugs gentoo 904366
 #ifdef USE_CONSOLEKIT
-#include "Ck.h"
+#include "bin/SLiM/Ck.h"
 #endif
 #ifdef USE_PAM
-#include "PAM.h"
+#include "lib/libSLiM/PAM.h"
 #endif
 
 using namespace std;

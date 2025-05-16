@@ -27,14 +27,14 @@
 #include <algorithm>
 #include <X11/Xmu/WinUtil.h>	// for XmuClientWindow
 
-#include "const.h"
-#include "log.h"
-#include "numlock.h"
-#include "switchuser.h"
-#include "util.h"
-#include "panel.h"
-#include "cfg.h"
-#include "app.h"
+#include "include/const.h"
+#include "lib/libSLiM/log.h"
+#include "lib/libSLiM/util.h"
+#include "lib/libSLiM/panel.h"
+#include "lib/libSLiM/cfg.h"
+#include "bin/SLiM/numlock.h"
+#include "bin/SLiM/switchuser.h"
+#include "bin/SLiM/app.h"
 
 #ifdef HAVE_SHADOW
 #include <shadow.h>

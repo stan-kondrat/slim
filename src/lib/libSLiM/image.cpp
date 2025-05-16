@@ -22,9 +22,9 @@
 
 using namespace std;
 
-#include "log.h"
-#include "const.h"
-#include "image.h"
+#include "include/const.h"
+#include "lib/libSLiM/log.h"
+#include "lib/libSLiM/image.h"
 
 extern "C" {
 	#include <jpeglib.h>

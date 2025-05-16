@@ -11,7 +11,7 @@
  * (at your option) any later version.
 */
 
-#include "app.h"
+#include "bin/SLiM/app.h"
 
 App* LoginApp = 0;
 

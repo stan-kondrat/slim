@@ -10,7 +10,8 @@
 
 #include <string>
 #include <iostream>
-#include "PAM.h"
+
+#include "lib/libSLiM/PAM.h"
 
 namespace PAM
 {

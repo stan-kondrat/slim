@@ -10,10 +10,11 @@
  *  (at your option) any later version.
  */
 
-#include "const.h"
-#include "log.h"
 #include <iostream>
 #include <cstring>
+
+#include "include/const.h"
+#include "lib/libSLiM/log.h"
 
 LogUnit::LogUnit()
 {

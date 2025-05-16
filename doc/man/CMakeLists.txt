@@ -1,0 +1,6 @@
+# man file
+install(FILES slim.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+
+if(BUILD_SLIMLOCK)
+	install(FILES slimlock.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+endif(BUILD_SLIMLOCK)
