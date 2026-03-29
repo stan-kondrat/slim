@@ -1,3 +1,9 @@
+1.5.1 - 2026.03.29
+    * fix: updated default_path for usr-merge compatibility:
+      /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
+      (based on Void Linux downstream patch by Piotr Wójcik,
+       https://github.com/void-linux/void-packages/commit/e955e9ae0b2b1640ad1a380c4628843e6647c71a)
+
 1.5.0 - 2026.03.28 - Security fixes by Claude Sonnet 4.6 (claude-sonnet-4-6)
     * Security: replaced sprintf() with snprintf() in App::Console() to prevent
       buffer overflow via format string with computed dimensions
@@ -18,6 +24,8 @@
       cleanly on allocation failure instead of crashing in memcpy()
     * Added display member to SwitchUser class to carry display name through
       to SetClientAuth()
+    * Added .github/workflows/build.yml CI workflow (Ubuntu, PAM enabled)
+    * Added .gitignore (excludes build/)
 
  ---   The releases below were the fork https://github.com/netfab/slim   ---
 

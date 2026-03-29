@@ -38,7 +38,7 @@ Cfg::Cfg()
 	: currentSession(-1)
 {
 	/* Configuration options */
-	options.insert(option("default_path","/bin:/usr/bin:/usr/local/bin"));
+	options.insert(option("default_path","/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin"));
 	options.insert(option("default_xserver","/usr/bin/X"));
 	options.insert(option("xserver_arguments",""));
 	options.insert(option("numlock",""));
