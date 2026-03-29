@@ -35,6 +35,7 @@ private:
 	void SetClientAuth(const char* mcookie);
 	Cfg* cfg;
 	struct passwd *Pw;
+	std::string display;
 
 	char** env;
 };

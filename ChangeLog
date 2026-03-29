@@ -1,3 +1,26 @@
+1.5.0 - 2026.03.28 - Security fixes by Claude Sonnet 4.6 (claude-sonnet-4-6)
+    * Security: replaced sprintf() with snprintf() in App::Console() to prevent
+      buffer overflow via format string with computed dimensions
+    * Security: replaced strcpy(pw->pw_shell) with strncpy() into a bounded
+      static buffer to prevent overflow when shell field is empty
+    * Security: replaced strcpy(args) with memcpy() in App::StartServer()
+    * Security: replaced putenv(StrConcat()) with setenv() in CreateServerAuth()
+      to eliminate memory leak and avoid mixing new[]/putenv ownership
+    * Security: replaced strcpy/strcat in StrConcat() with snprintf()
+    * Security: added NULL return checks on all strdup() calls in PAM conv()
+      to return PAM_BUF_ERR on allocation failure instead of crashing
+    * Security: fixed TOCTOU (symlink attack) race in SwitchUser::SetClientAuth()
+      by removing the remove()+recreate pattern; Xauthority file is now
+      overwritten atomically by add_mcookie()
+    * Security: fixed hardcoded display ":0" in CreateServerAuth() and
+      SetClientAuth() — now uses the actual DisplayName
+    * Security: added NULL checks after malloc() in Image constructor to abort
+      cleanly on allocation failure instead of crashing in memcpy()
+    * Added display member to SwitchUser class to carry display name through
+      to SetClientAuth()
+
+ ---   The releases below were the fork https://github.com/netfab/slim   ---
+
 1.4.1 - 2024.01.12
     * Adjusted how/when the pseudo-root window is created and removed, in
       preparation for handling multiple monitors in SLiM

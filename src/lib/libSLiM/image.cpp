@@ -45,12 +45,20 @@ Image::Image ( const int w, const int h, const unsigned char *rgb,
 	area = w * h;
 
 	rgb_data = (unsigned char *) malloc(3 * area);
+	if (rgb_data == NULL) {
+		logStream << APPNAME << ": malloc failed for rgb_data" << endl;
+		exit(ERR_EXIT);
+	}
 	memcpy(rgb_data, rgb, 3 * area);
 
 	if (alpha == NULL) {
 		png_alpha = NULL;
 	} else {
 		png_alpha = (unsigned char *) malloc(area);
+		if (png_alpha == NULL) {
+			logStream << APPNAME << ": malloc failed for png_alpha" << endl;
+			exit(ERR_EXIT);
+		}
 		memcpy(png_alpha, alpha, area);
 	}
 }

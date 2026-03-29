@@ -14,6 +14,7 @@
 #define _APP_H_
 
 #include <X11/Xlib.h>
+#include <string>
 
 #ifdef USE_PAM
 #include "lib/libSLiM/PAM.h"

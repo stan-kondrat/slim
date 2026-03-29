@@ -26,7 +26,7 @@ using namespace std;
 
 SwitchUser::SwitchUser(struct passwd *pw, Cfg *c, const string& display,
 					   char** _env)
-	: cfg(c), Pw(pw), env(_env)
+	: cfg(c), Pw(pw), display(display), env(_env)
 {
 }
 
@@ -71,7 +71,7 @@ void SwitchUser::SetClientAuth(const char* mcookie)
 {
 	string home = string(Pw->pw_dir);
 	string authfile = home + "/.Xauthority";
-	remove(authfile.c_str());
-	Util::add_mcookie(mcookie, ":0", cfg->getOption("xauth_path"),
+	/* Overwrite instead of remove+recreate to avoid TOCTOU symlink attack */
+	Util::add_mcookie(mcookie, display.c_str(), cfg->getOption("xauth_path"),
 	  authfile);
 }

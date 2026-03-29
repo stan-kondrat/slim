@@ -73,12 +73,14 @@ int conv(int num_msg, const struct pam_message **msg,
 					case Panel::Halt:
 					case Panel::Reboot:
 						(*resp)[i].resp=strdup("root");
+						if ((*resp)[i].resp == NULL) result = PAM_BUF_ERR;
 						break;
 
 					case Panel::Console:
 					case Panel::Exit:
 					case Panel::Login:
 						(*resp)[i].resp=strdup(panel->GetName().c_str());
+						if ((*resp)[i].resp == NULL) result = PAM_BUF_ERR;
 						break;
 					default:
 						break;
@@ -98,6 +100,7 @@ int conv(int num_msg, const struct pam_message **msg,
 					default:
 						panel->EventHandler(Panel::Get_Passwd);
 						(*resp)[i].resp=strdup(panel->GetPasswd().c_str());
+						if ((*resp)[i].resp == NULL) result = PAM_BUF_ERR;
 						break;
 				}
 				break;
@@ -674,8 +677,14 @@ void App::Login()
 	if (pw == 0)
 		return;
 	if (pw->pw_shell[0] == '\0') {
+		static char default_shell[256];
 		setusershell();
-		strcpy(pw->pw_shell, getusershell());
+		const char *shell = getusershell();
+		if (shell) {
+			strncpy(default_shell, shell, sizeof(default_shell) - 1);
+			default_shell[sizeof(default_shell) - 1] = '\0';
+			pw->pw_shell = default_shell;
+		}
 		endusershell();
 	}
 
@@ -934,8 +943,9 @@ void App::Console()
 
 	/* Execute console */
 	const char* cmd = cfg->getOption("console_cmd").c_str();
-	char *tmp = new char[strlen(cmd) + 60];
-	sprintf(tmp, cmd, width, height, posx, posy, fontx, fonty);
+	int tmpsize = strlen(cmd) + 60;
+	char *tmp = new char[tmpsize];
+	snprintf(tmp, tmpsize, cmd, width, height, posx, posy, fontx, fonty);
 	if ( system(tmp) < 0 )
 		logStream << APPNAME << ": Failed to fork console app '" << cmd << "'" << endl;
 	delete [] tmp;
@@ -1090,7 +1100,7 @@ int App::WaitForServer()
 	/* a good time. The incoming signal should terminate the sleep() call   */
 	/* with a non-zero return value. Otherwise, time out and try anyway but */
 	/* log the oddity.                                                      */
-	if ( !got_sigusr1 && ( sleep(5)==0 ) )
+	if ( !got_sigusr1 &&  ( sleep(5)==0 ) )
 		logStream << "WaitForServer: Not seen SigUSR1 from Xserver" << endl;
 
 	for (cycles = 0; cycles < ncycles; cycles++)
@@ -1127,7 +1137,7 @@ int App::StartServer()
 	/* Add mandatory -xauth option */
 	argOption = argOption + " -auth " + cfg->getOption("authfile");
 	char* args = new char[argOption.length()+2]; /* NULL plus vt */
-	strcpy(args, argOption.c_str());
+	memcpy(args, argOption.c_str(), argOption.length()+1);
 
 	serverStarted = false;
 
@@ -1431,8 +1441,8 @@ void App::CreateServerAuth()
 	/* reinitialize auth file */
 	authfile = cfg->getOption("authfile");
 	remove(authfile.c_str());
-	putenv(StrConcat("XAUTHORITY=", authfile.c_str()));
-	Util::add_mcookie(mcookie, ":0", cfg->getOption("xauth_path"),
+	setenv("XAUTHORITY", authfile.c_str(), 1);
+	Util::add_mcookie(mcookie, DisplayName, cfg->getOption("xauth_path"),
 	  authfile);
 }
 
@@ -1443,9 +1453,9 @@ void App::CreateServerAuth()
  */
 char* App::StrConcat(const char* str1, const char* str2)
 {
-	char* tmp = new char[strlen(str1) + strlen(str2) + 1];
-	strcpy(tmp, str1);
-	strcat(tmp, str2);
+	size_t len = strlen(str1) + strlen(str2) + 1;
+	char* tmp = new char[len];
+	snprintf(tmp, len, "%s%s", str1, str2);
 	return tmp;
 }
 
