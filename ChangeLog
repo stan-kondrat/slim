@@ -1,3 +1,14 @@
+1.5.2 - 2026.03.30 - Robustness fixes
+    * fix: check theme directory exists before starting X server (TODO item)
+      — falls back to "default" theme, exits cleanly if default also missing
+    * fix: XftFontOpenName() return value now checked with fallback to
+      sans-serif:size=12; throws std::runtime_error if no fonts available at all
+      instead of segfaulting on NULL dereference
+    * fix: all XftDrawCreate() calls now throw on NULL via createDrawOrThrow()
+      helper instead of silently dereferencing NULL
+    * fix: image->createPixmap() return value checked; throws on NULL
+    * fix: getenv("USER") NULL check in lock mode — falls back to empty string
+
 1.5.1 - 2026.03.29
     * fix: updated default_path for usr-merge compatibility:
       /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin

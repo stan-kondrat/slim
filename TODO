@@ -4,7 +4,7 @@ Important things
 
 Improvements suggested long ago
 -------------------------------
-- Don't start X server if theme's not found
+- [DONE] Don't start X server if theme's not found
 - i18n
 - FreeBSD fixes
 - restart X server on ctrl-alt-backspace

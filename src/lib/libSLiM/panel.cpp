@@ -12,6 +12,7 @@
  */
 
 #include <sstream>
+#include <stdexcept>
 #include <poll.h>
 #include <libgen.h>
 #include <X11/extensions/Xrandr.h>
@@ -27,6 +28,30 @@
 #include "bin/SLiM/switchuser.h"
 
 using namespace std;
+
+static XftDraw* createDrawOrThrow(Display* dpy, Drawable d, Visual* v, Colormap cm)
+{
+	XftDraw* draw = XftDrawCreate(dpy, d, v, cm);
+	if (!draw)
+		throw std::runtime_error("SLiM: XftDrawCreate failed");
+	return draw;
+}
+
+static XftFont* openFontWithFallback(Display* dpy, int scr, const std::string& name)
+{
+	XftFont* f = XftFontOpenName(dpy, scr, name.c_str());
+	if (!f) {
+		std::cerr << "SLiM: font not found: \"" << name
+		          << "\", trying sans-serif fallback" << std::endl;
+		f = XftFontOpenName(dpy, scr, "sans-serif:size=12");
+	}
+	if (!f) {
+		throw std::runtime_error(
+		    "SLiM: could not open font \"" + name +
+		    "\" and fallback also failed. Install a font (e.g. dejavu-fonts-ttf).");
+	}
+	return f;
+}
 
 Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 			 const string& themedir, PanelType panel_mode)
@@ -61,10 +86,10 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	// Intern _XROOTPMAP_ID property  -  does this belong here?
 	BackgroundPixmapId = XInternAtom(Dpy, "_XROOTPMAP_ID", False);
 
-	font = XftFontOpenName(Dpy, Scr, cfg->getOption("input_font").c_str());
-	welcomefont = XftFontOpenName(Dpy, Scr, cfg->getOption("welcome_font").c_str());
-	enterfont = XftFontOpenName(Dpy, Scr, cfg->getOption("username_font").c_str());
-	msgfont = XftFontOpenName(Dpy, Scr, cfg->getOption("msg_font").c_str());
+	font        = openFontWithFallback(Dpy, Scr, cfg->getOption("input_font"));
+	welcomefont = openFontWithFallback(Dpy, Scr, cfg->getOption("welcome_font"));
+	enterfont   = openFontWithFallback(Dpy, Scr, cfg->getOption("username_font"));
+	msgfont     = openFontWithFallback(Dpy, Scr, cfg->getOption("msg_font"));
 
 	Visual* visual = DefaultVisual(Dpy, Scr);
 	Colormap colormap = DefaultColormap(Dpy, Scr);
@@ -160,13 +185,16 @@ Panel::Panel(Display* dpy, int scr, Window root, Cfg* config,
 	image->Merge(bgImg, X, Y);
 
 	PanelPixmap = image->createPixmap(Dpy, Scr, RealRoot);
+	if (!PanelPixmap)
+		throw std::runtime_error("SLiM: failed to create panel pixmap");
 
 	/* Read (and substitute vars in) the welcome message */
 	welcome_message = cfg->getWelcomeMessage();
 
 	if (mode == Mode_Lock)
 	{
-		SetName(getenv("USER"));
+		const char* username = getenv("USER");
+		SetName(username ? username : "");
 		field = Get_Passwd;
 	}
 	MsgExtents.width = 0;
@@ -298,8 +326,8 @@ void Panel::WrongPassword(int timeout)
 #endif
 	message = cfg->getOption("passwd_feedback_msg");
 
-	XftDraw *draw = XftDrawCreate ( Dpy, Root,
-		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr) );
+	XftDraw *draw = createDrawOrThrow(Dpy, Root,
+		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 	XftTextExtents8(Dpy, msgfont, reinterpret_cast<const XftChar8*>(message.c_str()),
 		message.length(), &MsgExtents);
 
@@ -351,7 +379,7 @@ void Panel::Message(const string& text)
 	XftDraw *draw;
 
 	// The message positions are screen-relative, not panel-relative
-	draw = XftDrawCreate(Dpy, Root,
+	draw = createDrawOrThrow(Dpy, Root,
 		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
 	XftTextExtents8(Dpy, msgfont,
@@ -481,7 +509,7 @@ void Panel::EventHandler(const Panel::FieldType& curfield)
 
 void Panel::OnExpose(void)
 {
-	XftDraw *draw = XftDrawCreate(Dpy, Win,
+	XftDraw *draw = createDrawOrThrow(Dpy, Win,
 		DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
 	XClearWindow(Dpy, Win);
@@ -650,7 +678,7 @@ bool Panel::OnKeyPress(XEvent& event)
 	}
 
 	XGlyphInfo extents;
-	XftDraw *draw = XftDrawCreate(Dpy, Win,
+	XftDraw *draw = createDrawOrThrow(Dpy, Win,
 			  DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 
 	switch(field) {
@@ -708,7 +736,7 @@ void Panel::ShowText()
 
 	/// @bug this draw context is assumed relative to the panel but in lock
 	///		 mode it's actually relative to the background
-	XftDraw *draw = XftDrawCreate(Dpy, Win,
+	XftDraw *draw = createDrawOrThrow(Dpy, Win,
 		  DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 	/* welcome message */
 	XftTextExtents8(Dpy, welcomefont, (XftChar8*)welcome_message.c_str(),
@@ -801,9 +829,9 @@ void Panel::ShowSession()
 	string currsession = cfg->getOption("session_msg") + " " + session_name;
 	XGlyphInfo extents;
 
-	sessionfont = XftFontOpenName(Dpy, Scr, cfg->getOption("session_font").c_str());
+	sessionfont = openFontWithFallback(Dpy, Scr, cfg->getOption("session_font"));
 
-	XftDraw *draw = XftDrawCreate(Dpy, Root,
+	XftDraw *draw = createDrawOrThrow(Dpy, Root,
 								  DefaultVisual(Dpy, Scr), DefaultColormap(Dpy, Scr));
 	XftTextExtents8(Dpy, sessionfont, reinterpret_cast<const XftChar8*>(currsession.c_str()),
 					currsession.length(), &extents);

@@ -341,6 +341,23 @@ void App::Run()
 	{
 		themedir = themebase + themeName;
 		themefile = themedir + THEMESFILE;
+
+		/* Check theme directory exists before starting X */
+		struct stat themestat;
+		if (!testing && stat(themedir.c_str(), &themestat) != 0)
+		{
+			if (themeName == "default")
+			{
+				logStream << APPNAME << ": Default theme directory not found: "
+				          << themedir << endl;
+				exit(ERR_EXIT);
+			}
+			logStream << APPNAME << ": Theme directory not found: "
+			          << themedir << ", falling back to default" << endl;
+			themeName = "default";
+			continue;
+		}
+
 		if (!cfg->readConf(themefile))
 		{
 			if (themeName == "default")
